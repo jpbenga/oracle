@@ -58,6 +58,7 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
 
         if (finishedMatches && finishedMatches.length > 0) {
             for (const match of finishedMatches) {
+                console.log(chalk.green(`   -> Analyse du match : ${match.teams.home.name} vs ${match.teams.away.name}`));
                 const analysis = await analyseMatchService.analyseMatch(match);
                 if (analysis && analysis.markets) {
                     const matchResults = [];
@@ -82,19 +83,8 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
     }
     
     if (allBacktestResults.length === 0) {
-        console.log(chalk.yellow("Aucun résultat de backtest à analyser. Déclenchement de la suite..."));
-        try {
-            const predictionFunctionUrl = process.env.PREDICTION_FUNCTION_URL;
-            if (predictionFunctionUrl && predictionFunctionUrl !== 'placeholder') {
-                 await axios.get(predictionFunctionUrl, { timeout: 300000 });
-                 res.status(200).send("Aucun backtest, prédiction déclenchée.");
-            } else {
-                 res.status(200).send("Aucun backtest, URL de prédiction non configurée.");
-            }
-        } catch (error) {
-            console.error(chalk.red("Erreur lors du déclenchement de la fonction de prédiction :"), error.message);
-            res.status(500).send("Erreur lors du déclenchement de la fonction suivante.");
-        }
+        console.log(chalk.yellow("Aucun résultat de backtest à analyser."));
+        res.status(200).send("Aucun backtest à analyser.");
         return;
     }
 
@@ -144,18 +134,20 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
     await firestoreService.saveWhitelist(whitelist);
     console.log(chalk.magenta.bold(`-> Whitelist sauvegardée avec ${Object.keys(whitelist).length} marchés.`));
     
-    try {
-        console.log(chalk.green("Déclenchement de la fonction de prédiction..."));
-        const predictionFunctionUrl = process.env.PREDICTION_FUNCTION_URL;
-        if (predictionFunctionUrl && predictionFunctionUrl !== 'placeholder') {
-            await axios.get(predictionFunctionUrl, { timeout: 300000 });
-            res.status(200).send("Backtesting terminé, prédiction déclenchée.");
-        } else {
-            console.log(chalk.yellow("URL de la fonction de prédiction non configurée. Arrêt de la chaîne."));
-            res.status(200).send("Backtesting terminé, URL de prédiction non configurée.");
-        }
-    } catch (error) {
-        console.error(chalk.red("Erreur lors du déclenchement de la fonction de prédiction :"), error.message);
-        res.status(500).send("Erreur lors du déclenchement de la fonction suivante.");
-    }
+    res.status(200).send("Backtesting terminé.");
+
+    // try {
+    //     console.log(chalk.green("Déclenchement de la fonction de prédiction..."));
+    //     const predictionFunctionUrl = process.env.PREDICTION_FUNCTION_URL;
+    //     if (predictionFunctionUrl && predictionFunctionUrl !== 'placeholder') {
+    //         await axios.get(predictionFunctionUrl, { timeout: 300000 });
+    //         res.status(200).send("Backtesting terminé, prédiction déclenchée.");
+    //     } else {
+    //         console.log(chalk.yellow("URL de la fonction de prédiction non configurée. Arrêt de la chaîne."));
+    //         res.status(200).send("Backtesting terminé, URL de prédiction non configurée.");
+    //     }
+    // } catch (error) {
+    //     console.error(chalk.red("Erreur lors du déclenchement de la fonction de prédiction : "), error.message);
+    //     res.status(500).send("Erreur lors du déclenchement de la fonction suivante.");
+    // }
 });

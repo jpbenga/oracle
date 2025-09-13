@@ -57,11 +57,13 @@ class AnalyseMatchService {
     let homeStats = preloadedStats?.home || null;
     let awayStats = preloadedStats?.away || null;
 
-    if (!homeStats || !awayStats) {
-      [homeStats, awayStats] = await Promise.all([
-          apiFootballService.getTeamStats(homeTeamId, league.id, season),
-          apiFootballService.getTeamStats(awayTeamId, league.id, season)
-      ]);
+    if (!homeStats) {
+        console.log(`        -> Récupération des stats pour l'équipe à domicile : ${teams.home.name}`);
+        homeStats = await apiFootballService.getTeamStats(homeTeamId, league.id, season);
+    }
+    if (!awayStats) {
+        console.log(`        -> Récupération des stats pour l'équipe à l'extérieur : ${teams.away.name}`);
+        awayStats = await apiFootballService.getTeamStats(awayTeamId, league.id, season);
     }
 
     if (!homeStats || !awayStats || !homeStats.goals || !awayStats.goals) {
@@ -78,10 +80,12 @@ class AnalyseMatchService {
     
     if (matchesPlayed > 0 && matchesPlayed < 6) {
         console.log(chalk.yellow(`      -> Début de saison détecté (${matchesPlayed} matchs). Application des corrections.`));
-        const [prevHomeStats, prevAwayStats] = await Promise.all([
-            apiFootballService.getTeamStats(homeTeamId, league.id, season - 1),
-            apiFootballService.getTeamStats(awayTeamId, league.id, season - 1)
-        ]);
+        
+        console.log(`        -> Récupération des stats de la saison précédente pour : ${teams.home.name}`);
+        const prevHomeStats = await apiFootballService.getTeamStats(homeTeamId, league.id, season - 1);
+        
+        console.log(`        -> Récupération des stats de la saison précédente pour : ${teams.away.name}`);
+        const prevAwayStats = await apiFootballService.getTeamStats(awayTeamId, league.id, season - 1);
 
         let stabilityBoost = 1;
         if (prevHomeStats?.goals && prevAwayStats?.goals) {

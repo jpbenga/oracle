@@ -23,7 +23,7 @@ class ApiFootballService {
       try {
         const response = await this.api.get(endpoint, { params });
         if (response.data && Array.isArray(response.data.response) && response.data.response.length === 0) {
-            console.log(chalk.yellow(`      -> Tentative API ${attempts}/${footballConfig.maxApiAttempts} (${endpoint}) échouée. Raison: L'API a répondu OK mais n'a retourné aucune donnée pour ces paramètres.`));
+            console.log(chalk.yellow(`      -> Tentative API ${attempts}/${footballConfig.maxApiAttempts} (${endpoint}) : L'API a retourné une réponse vide (0 éléments).`));
             if (attempts < footballConfig.maxApiAttempts) await sleep(1500);
             continue;
         }
@@ -31,19 +31,13 @@ class ApiFootballService {
           return response.data.response;
         }
       } catch (error) {
-        let errorMessage = 'Erreur inconnue';
-        if (axios.isAxiosError(error)) {
-          if (error.response) {
-            errorMessage = `Statut ${error.response.status} - Réponse API: ${JSON.stringify(error.response.data, null, 2)}`;
-          } else if (error.request) {
-            errorMessage = "Aucune réponse reçue de l'API (timeout probable)";
-          } else {
-            errorMessage = error.message;
-          }
+        console.log(chalk.red(`      -> Tentative API ${attempts}/${footballConfig.maxApiAttempts} (${endpoint}) échouée.`));
+        if (axios.isAxiosError(error) && error.response) {
+          console.log(chalk.red(`      -> Code d'erreur API: ${error.response.status}`));
+          console.log(chalk.red('      -> Réponse API:', JSON.stringify(error.response.data, null, 2)));
         } else {
-          errorMessage = error.message;
+          console.log(chalk.red('      -> Erreur détaillée:', error.message));
         }
-        console.log(chalk.yellow(`      -> Tentative API ${attempts}/${footballConfig.maxApiAttempts} (${endpoint}) échouée. Raison: ${errorMessage}`));
       }
       if (attempts < footballConfig.maxApiAttempts) await sleep(1500);
     }
