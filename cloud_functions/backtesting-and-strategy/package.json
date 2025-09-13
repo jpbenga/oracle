@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "functions-framework --target=runBacktestingAndStrategy"
+    "start": "functions-framework --target=runBacktestingAndStrategy --port=${PORT}"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^3.0.0",
