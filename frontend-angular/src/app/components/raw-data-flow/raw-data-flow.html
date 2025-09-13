@@ -1,0 +1,69 @@
+<div class="fixed inset-0 bg-black bg-opacity-90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div class="max-w-4xl w-full bg-[#080808] border border-[#222] rounded-lg overflow-hidden relative">
+      <!-- Matrix-inspired scanline effect -->
+      <div class="scanline-effect"></div>
+      
+      <!-- Header -->
+      <div class="flex items-center justify-between p-4 border-b border-[#222] bg-[#0A0A0A] relative z-10">
+        <div>
+          <h3 class="text-sm font-mono text-[#666]">
+            SHORTLIST - PRÉDICTIONS PERTINENTES
+          </h3>
+          <div class="flex items-center gap-2">
+            <span class="text-[#00FF41] font-mono">
+              EN TEMPS RÉEL
+            </span>
+          </div>
+        </div>
+        <button (click)="onClose()" class="p-2 hover:bg-[#111] rounded-full transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <!-- Shortlist Table -->
+      <div class="p-2 max-h-[70vh] overflow-y-auto relative z-10">
+        <ng-container *ngIf="shortlist$ | async as shortlist; else loading">
+          <table *ngIf="shortlist.length > 0; else empty" class="w-full border-collapse font-mono text-xs">
+            <thead class="text-[#666]">
+              <tr class="border-b border-[#222]">
+                <th class="p-2 text-left">MATCH</th>
+                <th class="p-2 text-left">MARCHÉ</th>
+                <th class="p-2 text-left">CONF. ALGO</th>
+                <th class="p-2 text-left">TX. RÉUSSITE HIST.</th>
+                <th class="p-2 text-left">COTE</th>
+                <th class="p-2 text-left">STATUT</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of shortlist" class="border-b border-[#111] hover:bg-[#0A0A0A]">
+                  <td class="p-2">{{ item.matchLabel }}</td>
+                  <td class="p-2 text-[#00FF41]">{{ item.market | marketTranslate }}</td>
+                  <td class="p-2">{{ item.score?.toFixed(0) }}%</td>
+                  <td class="p-2">{{ item.historicalSuccessRate?.toFixed(0) }}%</td>
+                  <td class="p-2">{{ item.odd || '...' }}</td>
+                  <td class="p-2">
+                    <span [ngClass]="{
+                      'text-yellow-400': item.status === 'PENDING_ODDS',
+                      'text-green-400': item.status === 'COMPLETED'
+                    }">
+                      {{ item.status === 'PENDING_ODDS' ? 'EN ATTENTE DE COTE' : 'PRÊT' }}
+                    </span>
+                  </td>
+              </tr>
+            </tbody>
+          </table>
+          <ng-template #empty>
+            <div class="text-center p-8 text-[#666]">
+              <p>Aucune prédiction pertinente dans la shortlist pour le moment.</p>
+              <p class="text-xs mt-2">Le système attend les prochains matchs à analyser.</p>
+            </div>
+          </ng-template>
+        </ng-container>
+        <ng-template #loading>
+          <div class="text-center p-8 text-[#666]">
+            <p>Chargement du flux de données...</p>
+          </div>
+        </ng-template>
+      </div>
+    </div>
+  </div>

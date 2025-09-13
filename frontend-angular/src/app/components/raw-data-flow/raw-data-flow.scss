@@ -1,0 +1,35 @@
+.scanline-effect {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    overflow: hidden;
+    opacity: 0.05; // Slightly less opaque than paywall
+  }
+  
+  .scanline-effect::before {
+    content: '';
+    position: absolute;
+    top: -100%;
+    left: 0;
+    width: 100%;
+    height: 200%;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(0, 255, 65, 0.2) 50%,
+      transparent 100%
+    );
+    animation: scan 4s linear infinite;
+  }
+  
+  @keyframes scan {
+    0% {
+      transform: translateY(0);
+    }
+    100% {
+      transform: translateY(100%);
+    }
+  }

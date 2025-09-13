@@ -1,0 +1,50 @@
+<div>
+    <!-- Subscription Status -->
+    <div class="inline-block px-3 py-1 rounded-full mb-6" [ngClass]="isPremium ? 'bg-[#0A2A0A] text-[#00FF41]' : 'bg-[#1A1A1A] text-[#888]'">
+      <span class="font-mono text-sm">
+        Abonnement: {{ isPremium ? 'Premium' : 'Gratuit' }}
+      </span>
+    </div>
+  
+    <!-- Premium User View -->
+    <div *ngIf="isPremium; else freeUserView">
+      <h3 class="text-lg font-bold mb-3">Historique des factures</h3>
+      <div class="space-y-2">
+        <div *ngFor="let invoice of mockInvoices" class="flex justify-between items-center p-3 bg-[#0A0A0A] rounded border border-[#222]">
+          <div>
+            <div class="font-medium">Facture - {{ invoice.date }}</div>
+            <div class="text-sm text-[#888]">{{ invoice.amount }}</div>
+          </div>
+          <button class="flex items-center gap-1 px-3 py-1 bg-[#222] hover:bg-[#333] rounded transition-colors">
+            <!-- Download Icon Placeholder -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span class="text-sm">Télécharger</span>
+          </button>
+        </div>
+      </div>
+      <div class="mt-6 p-4 border border-[#333] border-dashed rounded bg-[#0F0F0F]">
+        <div class="text-center">
+          <button class="px-4 py-2 bg-[#333] text-[#E0E0E0] rounded hover:bg-[#444] transition-colors">
+            Annuler l'abonnement
+          </button>
+        </div>
+      </div>
+    </div>
+  
+    <!-- Free User View -->
+    <ng-template #freeUserView>
+      <div class="p-6 border border-[#333] border-dashed rounded bg-[#0F0F0F] text-center">
+        <!-- Zap Icon Placeholder -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-[#00FF41] mx-auto mb-3"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        <h3 class="text-xl font-bold mb-2">
+          Passez à la vitesse supérieure
+        </h3>
+        <p class="mb-4 text-[#888]">
+          Accédez aux prédictions futures et débloquez tout le potentiel de l'Oracle.
+        </p>
+        <button class="px-6 py-3 bg-[#00FF41] text-black font-bold rounded hover:bg-opacity-90 transition-colors">
+          Passer Premium
+        </button>
+      </div>
+    </ng-template>
+  </div>

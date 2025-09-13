@@ -1,0 +1,41 @@
+
+<div *ngIf="ticket" class="h-full rounded-lg border border-[#222] bg-[#121212] overflow-hidden flex flex-col">
+  <!-- Header with Total Odd -->
+  <div class="p-3 border-b border-[#222] bg-[#0F0F0F] text-center">
+    <h3 class="font-bold text-lg text-[#00FF41]">
+      Cote Totale : {{ ticket.totalOdd.toFixed(2) }}
+    </h3>
+  </div>
+
+  <!-- Bets List -->
+  <div class="p-4 flex-grow">
+    <div *ngFor="let bet of ticket.bets; let isLast = last">
+      <div class="py-3">
+        <!-- Match Info -->
+        <div class="text-xs text-gray-400 mb-2">{{ bet.league }}</div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-2">
+            <img [src]="bet.homeLogo" class="w-5 h-5" alt="{{ bet.homeTeam }} logo">
+            <span class="font-semibold">{{ bet.homeTeam }}</span>
+          </div>
+          <span class="text-gray-500">vs</span>
+          <div class="flex items-center gap-2">
+            <span class="font-semibold">{{ bet.awayTeam }}</span>
+            <img [src]="bet.awayLogo" class="w-5 h-5" alt="{{ bet.awayTeam }} logo">
+          </div>
+        </div>
+
+        <!-- Bet Details -->
+        <div class="bg-[#0A0A0A] p-2 rounded-md text-center">
+          <div class="text-sm text-gray-300">{{ bet.market | marketTranslate }}</div>
+          <div class="flex items-center justify-center gap-4">
+            <span class="font-mono font-bold text-white">@ {{ bet.odd.toFixed(2) }}</span>
+            <span class="text-sm text-[#00FF41]">Confiance: {{ bet.score.toFixed(0) }}%</span>
+          </div>
+        </div>
+      </div>
+      <!-- Divider -->
+      <hr *ngIf="!isLast" class="border-[#222]">
+    </div>
+  </div>
+</div>

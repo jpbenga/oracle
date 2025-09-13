@@ -1,0 +1,34 @@
+<div class="bg-[#0F0F0F] border border-[#222] rounded-lg p-3 flex flex-col">
+    <!-- Character Name -->
+    <div class="flex justify-between items-center mb-2">
+      <h3 class="font-bold text-[#00FF41]">{{ character.name }}</h3>
+      <span class="text-xs font-mono text-[#888]">
+        {{ character.progress }}/{{ character.goal }} wins
+      </span>
+    </div>
+    <!-- Progress Bar -->
+    <div class="w-full h-2 bg-[#222] rounded-full mb-3 overflow-hidden">
+      <div class="h-full bg-[#00FF41]" [style.width.%]="progressPercentage"></div>
+    </div>
+    <!-- Goal -->
+    <div class="text-xs text-[#888] mb-2">
+      Goal: <span class="text-[#CCC]">Reach {{ character.goal }} consecutive wins</span>
+    </div>
+    <!-- Bankroll -->
+    <div class="flex justify-between items-center mb-1">
+      <span class="text-xs text-[#888]">Current Bankroll:</span>
+      <span class="font-mono font-bold">{{ character.bankroll | number:'1.2-2' }}€</span>
+    </div>
+    <!-- Performance -->
+    <div class="flex justify-between items-center">
+      <span class="text-xs text-[#888]">Total Performance:</span>
+      <span class="font-mono font-bold" 
+            [ngClass]="{
+              'text-[#00FF41]': character.performance > 0,
+              'text-red-500': character.performance < 0,
+              'text-[#888]': character.performance === 0
+            }">
+        {{ character.performance > 0 ? '+' : '' }}{{ character.performance | number:'1.2-2' }}€
+      </span>
+    </div>
+  </div>

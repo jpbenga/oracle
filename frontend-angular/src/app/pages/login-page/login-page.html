@@ -1,0 +1,61 @@
+<div class="flex items-center justify-center min-h-screen bg-[#0A0A0A]">
+    <div class="max-w-md w-full bg-[#121212] border border-[#222] rounded-lg p-8 space-y-6">
+      
+      <div class="text-center">
+        <h1 class="text-3xl font-bold text-[#00FF41]">The Oracle</h1>
+        <p class="text-[#888] mt-2">Connectez-vous pour accéder au signal.</p>
+      </div>
+  
+      <!-- Form -->
+      <form (ngSubmit)="handleLogin()" #loginForm="ngForm" class="space-y-6">
+        <!-- Email Input -->
+        <div>
+          <label for="email" class="block text-sm text-[#888] mb-2">Email</label>
+          <input 
+            type="email" 
+            id="email" 
+            name="email"
+            [(ngModel)]="email"
+            required
+            class="w-full bg-[#0A0A0A] border border-[#222] rounded p-3 font-mono text-[#E0E0E0] focus:outline-none focus:border-[#00FF41]"
+            placeholder="neo@oracle.com">
+        </div>
+  
+        <!-- Password Input -->
+        <div>
+          <label for="password" class="block text-sm text-[#888] mb-2">Mot de passe</label>
+          <input 
+            type="password" 
+            id="password" 
+            name="password"
+            [(ngModel)]="password"
+            required
+            class="w-full bg-[#0A0A0A] border border-[#222] rounded p-3 font-mono text-[#E0E0E0] focus:outline-none focus:border-[#00FF41]"
+            placeholder="••••••••••••">
+        </div>
+  
+        <!-- Error Message -->
+        <div *ngIf="error" class="text-center p-3 bg-[#2A0A0A] text-red-500 border border-red-500 rounded-md">
+          {{ error }}
+        </div>
+  
+        <!-- Buttons -->
+        <div class="flex flex-col gap-4">
+          <button 
+            type="submit" 
+            [disabled]="isLoading || loginForm.invalid"
+            class="w-full py-3 bg-[#00FF41] text-black font-bold rounded hover:bg-opacity-90 transition-colors disabled:bg-opacity-50 disabled:cursor-not-allowed">
+            {{ isLoading ? 'Connexion...' : 'Se Connecter' }}
+          </button>
+          <button 
+            type="button" 
+            (click)="handleRegister()"
+            [disabled]="isLoading || loginForm.invalid"
+            class="w-full py-3 bg-transparent border border-[#333] text-[#CCC] rounded hover:bg-[#1A1A1A] transition-colors disabled:bg-opacity-50 disabled:cursor-not-allowed">
+            {{ isLoading ? 'Inscription...' : 'S\'inscrire' }}
+          </button>
+        </div>
+      </form>
+  
+    </div>
+  </div>

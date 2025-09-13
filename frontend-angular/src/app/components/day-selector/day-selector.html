@@ -1,0 +1,28 @@
+<div class="mb-8">
+  <div class="flex justify-between items-center mb-4">
+    <button (click)="prevDay()" [disabled]="selectedDayOffset <= -6" class="p-2 rounded-full hover:bg-[#222] transition-colors disabled:opacity-50">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6"><path d="m15 18-6-6 6-6"/></svg>
+    </button>
+    <h2 class="text-xl font-bold">
+      {{ formatDate(getDateForOffset(selectedDayOffset), selectedDayOffset) }}
+    </h2>
+    <button (click)="nextDay()" [disabled]="selectedDayOffset >= 2" class="p-2 rounded-full hover:bg-[#222] transition-colors disabled:opacity-50">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6"><path d="m9 18 6-6-6-6"/></svg>
+    </button>
+  </div>
+  <div class="flex justify-center overflow-x-auto pb-4 space-x-2 scrollbar-hide">
+    <button *ngFor="let offset of dayOffsets" (click)="onSelectDay(offset)"
+            [ngClass]="{
+              'bg-[#222] border border-[#00FF41]': offset === selectedDayOffset,
+              'bg-[#111] hover:bg-[#1A1A1A]': offset !== selectedDayOffset
+            }"
+            class="flex flex-col items-center justify-center min-w-[60px] h-16 rounded p-2 transition-all relative">
+      <span class="text-xs">
+        {{ offset === 0 ? 'Aujourd\'hui' : offset > 0 ? 'J+'+offset : 'J'+offset }}
+      </span>
+      <span class="text-sm font-mono">
+        {{ getDateForOffset(offset).getDate() }}
+      </span>
+    </button>
+  </div>
+</div>
