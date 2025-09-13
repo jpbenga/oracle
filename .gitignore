@@ -1,0 +1,30 @@
+# Dépendances
+/node_modules
+/.pnp
+.pnp.js
+
+# Fichiers de log
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Fichiers de configuration de l'éditeur
+.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-workspace
+
+# Fichiers de build et de cache
+/dist
+/coverage
+/.angular/cache
