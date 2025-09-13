@@ -1,10 +1,10 @@
 const functions = require('@google-cloud/functions-framework');
 const chalk = require('chalk');
-const { firestoreService } = require('./common/services/Firestore.service');
-const { footballConfig } = require('./common/config/football.config');
-const { gestionJourneeService } = require('./common/services/GestionJournee.service');
-const { analyseMatchService } = require('./common/services/AnalyseMatch.service');
-const { apiFootballService } = require('./common/services/ApiFootball.service');
+const { firestoreService } = require('../common/services/Firestore.service');
+const { footballConfig } = require('../common/config/football.config');
+const { gestionJourneeService } = require('../common/services/GestionJournee.service');
+const { analyseMatchService } = require('../common/services/AnalyseMatch.service');
+const { apiFootballService } = require('../common/services/ApiFootball.service');
 const axios = require('axios');
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
