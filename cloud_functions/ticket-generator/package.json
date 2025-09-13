@@ -1,9 +1,12 @@
 {
-    "name": "ticket-generator-function",
-    "version": "1.0.0",
-    "main": "index.js",
-    "dependencies": {
-      "@google-cloud/firestore": "^7.7.0",
-      "chalk": "^4.1.2"
-    }
+  "name": "ticket-generator-function",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "functions-framework --target=runTicketGenerator"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "^7.7.0",
+    "chalk": "^4.1.2"
   }
+}

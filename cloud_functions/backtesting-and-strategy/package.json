@@ -1,10 +1,13 @@
 {
-    "name": "backtesting-and-strategy",
-    "version": "1.0.0",
-    "main": "index.js",
-    "dependencies": {
-      "@google-cloud/firestore": "^7.7.0",
-      "axios": "^1.6.8",
-      "chalk": "^4.1.2"
-    }
+  "name": "backtesting-and-strategy",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "functions-framework --target=runBacktestingAndStrategy"
+  },
+  "dependencies": {
+    "@google-cloud/firestore": "^7.7.0",
+    "axios": "^1.6.8",
+    "chalk": "^4.1.2"
   }
+}
