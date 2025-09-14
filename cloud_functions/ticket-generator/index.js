@@ -100,7 +100,7 @@ function generateTicketsHtml(tickets) {
 }
 
 functions.http('runTicketGenerator', async (req, res) => {
-    console.log(chalk.blue.bold("---" Démarrage du Job de Génération de Tickets ---"));
+    console.log(chalk.blue.bold("--- Démarrage du Job de Génération de Tickets ---"));
 
     const today = new Date();
     const tomorrow = new Date();
