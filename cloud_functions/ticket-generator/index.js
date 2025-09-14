@@ -196,7 +196,10 @@ functions.http('runTicketGenerator', async (req, res) => {
             totalExpectedValue: ticket.totalExpectedValue,
             creation_date: new Date().toISOString().split('T')[0],
             status: 'PENDING',
-            bets: ticket.bets.map(b => ({...b, weightedScore: undefined})) // Ne pas sauvegarder le score pondéré
+            bets: ticket.bets.map(b => {
+                delete b.weightedScore; // Suppression directe de la propriété
+                return b;
+            })
         };
         await firestoreService.saveTicket(ticketData);
     }
