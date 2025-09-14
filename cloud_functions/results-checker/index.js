@@ -157,7 +157,7 @@ functions.http('resultsChecker', async (req, res) => {
         for (const id of fixturesToQuery) {
             const fixture = await apiFootballService.getMatchById(id);
             if (fixture) fixtures.push(fixture);
-            await new Promise(resolve => setTimeout(resolve, 300)); // Délai pour ne pas surcharger l'API
+            
         }
 
         if (fixtures.length === 0) {
