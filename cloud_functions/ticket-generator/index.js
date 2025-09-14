@@ -24,24 +24,24 @@ function getCombinations(array, size) {
 
 function generateTicketsHtml(tickets) {
     const css = `
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: auto; }
-        h1 { color: #1d2129; border-bottom: 2px solid #e9ebee; padding-bottom: 10px; font-size: 2em; text-align: center; margin-bottom: 40px; }
+        h1 { color: #bb86fc; border-bottom: 2px solid #373737; padding-bottom: 10px; font-size: 2em; text-align: center; margin-bottom: 40px; }
         .ticket-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px; }
-        .ticket-card { background: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s; }
+        .ticket-card { background: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s; background-color: #1e1e1e; border: 1px solid #373737;}
         .ticket-card:hover { transform: translateY(-5px); }
         .ticket-header { background-color: #333; color: #fff; padding: 15px; text-align: center; }
         .ticket-header h2 { margin: 0; font-size: 1.2em; }
         .ticket-body { padding: 20px; flex-grow: 1; }
-        .ticket-footer { background-color: #f6f7f9; padding: 15px; text-align: center; border-top: 1px solid #e9ebee; }
-        .ticket-footer strong { font-size: 1.4em; color: #28a745; }
-        .bet { border-bottom: 1px solid #e9ebee; padding: 15px 0; }
+        .ticket-footer { background-color: #2a2a2a; padding: 15px; text-align: center; border-top: 1px solid #373737; }
+        .ticket-footer strong { font-size: 1.4em; color: #03dac6; }
+        .bet { border-bottom: 1px solid #373737; padding: 15px 0; }
         .bet:last-child { border-bottom: none; }
-        .bet-match { font-weight: bold; color: #333; }
-        .bet-market { color: #606770; }
+        .bet-match { font-weight: bold; color: #e0e0e0; }
+        .bet-market { color: #aaa; }
         .bet-details { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
-        .bet-odd { font-weight: bold; color: #1d2129; }
-        .no-data { text-align: center; padding: 40px; font-style: italic; color: #888; background: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .bet-odd { font-weight: bold; color: #e0e0e0; }
+        .no-data { text-align: center; padding: 40px; font-style: italic; color: #888; background: #1e1e1e; border-radius: 8px; }
     `;
 
     let ticketsHtml = '';
@@ -100,7 +100,7 @@ function generateTicketsHtml(tickets) {
 }
 
 functions.http('runTicketGenerator', async (req, res) => {
-    console.log(chalk.blue.bold("--- Démarrage du Job de Génération de Tickets ---"));
+    console.log(chalk.blue.bold("---" Démarrage du Job de Génération de Tickets ---"));
 
     const today = new Date();
     const tomorrow = new Date();
@@ -112,16 +112,15 @@ functions.http('runTicketGenerator', async (req, res) => {
     const todayPredictions = await firestoreService.getEligiblePredictionsForDate(todayStr);
     const tomorrowPredictions = await firestoreService.getEligiblePredictionsForDate(tomorrowStr);
 
-    const allEligiblePredictions = [...todayPredictions, ...tomorrowPredictions];
+    const allEligiblePredictions = [...todayPredictions, ...tomorrowPredictions].filter(p => p.odd); // Ne garder que les pronos avec une cote
 
     if (allEligiblePredictions.length === 0) {
-        console.log(chalk.yellow('Aucune prédiction éligible trouvée pour J et J+1. Aucun ticket ne sera généré.'));
-        const htmlResponse = generateTicketsHtml([]);
-        res.status(200).send(htmlResponse);
+        console.log(chalk.yellow('Aucune prédiction éligible avec cote trouvée pour J et J+1.'));
+        res.status(200).send(generateTicketsHtml([]));
         return;
     }
     
-    console.log(chalk.cyan(`${allEligiblePredictions.length} pronostics éligibles trouvés pour J et J+1.`));
+    console.log(chalk.cyan(`${allEligiblePredictions.length} pronostics éligibles avec cote trouvés pour J et J+1.`));
 
     const MIN_ODD = 1.88;
     const MAX_ODD = 2.25;
@@ -139,26 +138,32 @@ functions.http('runTicketGenerator', async (req, res) => {
     }
 
     // Tickets avec 2 matchs
-    const combosOfTwo = getCombinations(allEligiblePredictions, 2);
-    for (const combo of combosOfTwo) {
-        // Ensure matches in a combo are different
-        if (combo[0].fixtureId === combo[1].fixtureId) continue;
+    const MIN_ODD_FOR_COMBOS = 1.35;
+    const predictionsForCombos = allEligiblePredictions.filter(p => p.odd >= MIN_ODD_FOR_COMBOS);
+    console.log(chalk.cyan(`   -> ${predictionsForCombos.length} pronostics conservés pour les combinés (cote >= ${MIN_ODD_FOR_COMBOS})`));
 
-        const totalOdd = combo.reduce((acc, p) => acc * (p.odd || 1), 1);
-        if (totalOdd >= MIN_ODD && totalOdd <= MAX_ODD) {
-            const totalExpectedValue = combo.reduce((acc, p) => acc + ((p.score / 100) * p.odd), 0);
-            allPossibleTickets.push({
-                bets: combo,
-                totalOdd,
-                totalExpectedValue,
-            });
+    if (predictionsForCombos.length > 1) {
+        const combosOfTwo = getCombinations(predictionsForCombos, 2);
+        console.log(chalk.cyan(`   -> Calcul sur ${combosOfTwo.length} combinaisons possibles...`));
+
+        for (const combo of combosOfTwo) {
+            if (combo[0].fixtureId === combo[1].fixtureId) continue;
+
+            const totalOdd = combo.reduce((acc, p) => acc * p.odd, 1);
+            if (totalOdd >= MIN_ODD && totalOdd <= MAX_ODD) {
+                const totalExpectedValue = combo.reduce((acc, p) => acc + ((p.score / 100) * p.odd), 0);
+                allPossibleTickets.push({
+                    bets: combo,
+                    totalOdd,
+                    totalExpectedValue,
+                });
+            }
         }
     }
 
     if (allPossibleTickets.length === 0) {
         console.log(chalk.yellow("Aucun ticket n'a pu être généré avec les critères actuels."));
-        const htmlResponse = generateTicketsHtml([]);
-        res.status(200).send(htmlResponse);
+        res.status(200).send(generateTicketsHtml([]));
         return;
     }
 
@@ -182,6 +187,5 @@ functions.http('runTicketGenerator', async (req, res) => {
     console.log(chalk.green.bold(`-> ${bestTickets.length} tickets sauvegardés avec succès.`));
     
     console.log(chalk.blue.bold("\n--- Job de Génération de Tickets Terminé ---"));
-    const htmlResponse = generateTicketsHtml(bestTickets);
-    res.status(200).send(htmlResponse);
+    res.status(200).send(generateTicketsHtml(bestTickets));
 });
