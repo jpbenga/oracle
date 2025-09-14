@@ -17,6 +17,7 @@ class ApiFootballService {
   }
 
   async makeRequest(endpoint, params) {
+    console.log(chalk.blue('      -> Paramètres de la requête:', JSON.stringify(params, null, 2)));
     let attempts = 0;
     while (attempts < footballConfig.maxApiAttempts) {
       attempts++;

@@ -16,13 +16,13 @@ class GestionJourneeService {
             return null;
         }
         
-        const roundParts = currentRoundName.match(/(\D+)(\d+)/);
+        const roundParts = currentRoundName.match(/(.*?)\s*-\s*(\d+)/);
         if (!roundParts || !roundParts[2] || parseInt(roundParts[2], 10) <= 1) {
             console.log(chalk.gray(`      -> Pas de journée N-1 à analyser.`));
             return null;
         }
         
-        const prefix = roundParts[1]?.trim();
+        const prefix = roundParts[1];
         const previousRoundNumber = parseInt(roundParts[2], 10) - 1;
         const previousRoundName = `${prefix} - ${previousRoundNumber}`;
         
