@@ -90,6 +90,7 @@ function generatePredictionHtml(predictionsByLeague, status) {
         summary:hover { background-color: #2a2a2a; }
         .details-table { margin: 0; border-radius: 0; box-shadow: none; }
         .score { font-weight: bold; }
+        .rate-high { color: #28a745; }
         .score-high { color: #03dac6; } .score-mid { color: #f0e68c; }
         .score-very-high { color: #00ff00; font-weight: bold; }
         .na { color: #666; }
@@ -102,31 +103,35 @@ function generatePredictionHtml(predictionsByLeague, status) {
     if (Object.keys(predictionsByLeague).length > 0) {
         for (const leagueName in predictionsByLeague) {
             html += `<div class="league-container"><h2>${leagueName}</h2><table>
-                        <thead><tr><th>Match</th><th>Date</th><th>Heure</th><th>Marché le + Fiable</th></tr></thead><tbody>`;
+                        <thead><tr><th>Match</th><th>Date</th><th>Heure</th><th>Marché le + Fiable</th><th>Taux Réussite Hist.</th></tr></thead><tbody>`;
             predictionsByLeague[leagueName].forEach(match => {
                 const bestBet = getIntuitiveBestBet(match.scores, 60);
                 const scoreClass = bestBet.score >= 90 ? 'score-very-high' : bestBet.score >= 75 ? 'score-high' : 'score-mid';
                 const bestBetOdd = match.odds[bestBet.market];
+                const bestBetHistRate = match.historicalRates[bestBet.market];
                 html += `
                     <tr>
                         <td>${match.matchLabel}</td>
                         <td>${match.date}</td>
                         <td>${match.time}</td>
                         <td>${bestBet.market} <span class="score ${scoreClass}">(${Math.round(bestBet.score)}%)</span> @ ${bestBetOdd ? bestBetOdd.toFixed(2) : '<span class="na">N/A</span>'}</td>
+                        <td class="rate-high"><b>${bestBetHistRate ? bestBetHistRate.toFixed(2) + '%' : 'N/A'}</b></td>
                     </tr>
-                    <tr><td colspan="4" style="padding:0;">
+                    <tr><td colspan="5" style="padding:0;">
                         <details>
                             <summary>Voir tous les marchés éligibles</summary>
                             <table class="details-table">
-                                <thead><tr><th>Marché</th><th>Score de Confiance</th><th>Cote</th></tr></thead>
+                                <thead><tr><th>Marché</th><th>Score Confiance</th><th>Taux Réussite Hist.</th><th>Cote</th></tr></thead>
                                 <tbody>`;
                 Object.keys(match.scores).sort().forEach(market => {
                     const score = match.scores[market];
                     const odd = match.odds[market];
+                    const histRate = match.historicalRates[market];
                     const sClass = score >= 90 ? 'score-very-high' : score >= 75 ? 'score-high' : 'score-mid';
                     html += `<tr>
                                 <td>${market}</td>
                                 <td class="score ${sClass}">${Math.round(score)}%</td>
+                                <td class="rate-high"><b>${histRate ? histRate.toFixed(2) + '%' : 'N/A'}</b></td>
                                 <td>${odd ? odd.toFixed(2) : '<span class="na">N/A</span>'}</td>
                             </tr>`;
                 });
@@ -143,27 +148,37 @@ function generatePredictionHtml(predictionsByLeague, status) {
 
 
 functions.http('runPrediction', async (req, res) => {
-    console.log(chalk.blue.bold("---" + "Démarrage du Job de Prédiction" + "---"));
+    console.log(chalk.blue.bold("--- Démarrage du Job de Prédiction ---"));
     
     const season = new Date().getFullYear();
     const eligiblePredictions = [];
 
-    const whitelist = await firestoreService.getWhitelist();
-    if (!whitelist) {
-        const errorHtml = generatePredictionHtml({}, "ERREUR CRITIQUE: Whitelist non trouvée. Le backtesting doit être exécuté d'abord.");
+    const [whitelist, backtestSummary] = await Promise.all([
+        firestoreService.getWhitelist(),
+        firestoreService.getBacktestSummary()
+    ]);
+
+    if (!whitelist || !backtestSummary) {
+        const errorMsg = "ERREUR CRITIQUE: Whitelist ou résumé du backtest non trouvé. Le backtesting doit être exécuté d'abord.";
+        const errorHtml = generatePredictionHtml({}, errorMsg);
         res.status(500).send(errorHtml);
         return;
     }
-    console.log(chalk.green("Whitelist chargée avec succès. Application de la stratégie de filtrage."));
+    console.log(chalk.green("Whitelist et résumé du backtest chargés avec succès."));
+
+    const bookmakers = await apiFootballService.getBookmakers();
+    if (!bookmakers || bookmakers.length === 0) {
+        const errorHtml = generatePredictionHtml({}, "ERREUR CRITIQUE: Aucun bookmaker disponible via l\'API.");
+        res.status(500).send(errorHtml);
+        return;
+    }
+    console.log(chalk.green(`${bookmakers.length} bookmakers trouvés.`));
 
     for (const league of footballConfig.leaguesToAnalyze) {
         console.log(chalk.cyan.bold(`
 [Prédiction] Analyse de la ligue : ${league.name}`));
         const upcomingMatches = await gestionJourneeService.getMatchesForPrediction(league.id, season);
-        if (!upcomingMatches || upcomingMatches.length === 0) {
-            console.log(chalk.yellow(`Aucun match à venir trouvé pour la ligue ${league.name}.`));
-            continue;
-        }
+        if (!upcomingMatches || upcomingMatches.length === 0) continue;
 
         for (const match of upcomingMatches) {
             console.log(chalk.green(`
@@ -172,12 +187,19 @@ functions.http('runPrediction', async (req, res) => {
             if (analysisResult && analysisResult.markets) {
                 const confidenceScores = analysisResult.markets;
                 
-                console.log(chalk.blue(`      -> Récupération des cotes pour le match ID: ${match.fixture.id}`));
-                const oddsData = await apiFootballService.getOddsForFixture(match.fixture.id);
-                console.log(`      -> Cotes reçues de l'API: ${oddsData && oddsData.length > 0 ? `${oddsData[0].bookmakers.length} bookmakers` : 'Aucune'}`);
-
-                const parsedOdds = parseOdds(oddsData || []);
-                console.log(`      -> Cotes interprétées: ${Object.keys(parsedOdds).length} cotes trouvées.`);
+                let combinedParsedOdds = {};
+                for (const bookmaker of bookmakers) {
+                    const singleBookmakerOdds = await apiFootballService.getOddsForFixture(match.fixture.id, bookmaker.id);
+                    if (singleBookmakerOdds && singleBookmakerOdds.length > 0) {
+                        const parsedFromThisBookmaker = parseOdds(singleBookmakerOdds);
+                        for (const market in parsedFromThisBookmaker) {
+                            if (!combinedParsedOdds[market]) {
+                                combinedParsedOdds[market] = parsedFromThisBookmaker[market];
+                            }
+                        }
+                    }
+                }
+                const parsedOdds = combinedParsedOdds;
 
                 for (const market in confidenceScores) {
                     const score = confidenceScores[market];
@@ -187,18 +209,21 @@ functions.http('runPrediction', async (req, res) => {
 
                     if (whitelist[market] && whitelist[market].includes(trancheKey)) {
                         const odd = parsedOdds[market];
-                        console.log(chalk.green.bold(`       -> Marché ${market} (score: ${score.toFixed(2)}%) VALIDÉ. Recherche de cote... ${odd ? `Trouvée: ${odd}`: 'Non trouvée'}`));
+                        const trancheData = backtestSummary[market]?.[trancheKey];
+                        const historicalRate = (trancheData && trancheData.total > 0) ? (trancheData.success / trancheData.total) * 100 : null;
+
+                        console.log(chalk.green.bold(`       -> Marché ${market} (score: ${score.toFixed(2)}%) VALIDÉ. Taux hist: ${historicalRate ? historicalRate.toFixed(2) + '%' : 'N/A'}. Cote: ${odd ? odd : 'N/A'}`));
                         
                         const predictionData = {
                             fixtureId: match.fixture.id,
                             matchLabel: `${match.teams.home.name} vs ${match.teams.away.name}`,
                             matchDate: new Date(match.fixture.date).toISOString(),
-                            leagueId: league.id,
                             leagueName: league.name,
                             market: market,
                             score: score,
                             odd: odd || null,
                             status: odd ? 'ELIGIBLE' : 'INCOMPLETE',
+                            historicalRate: historicalRate
                         };
                         eligiblePredictions.push(predictionData);
                         await firestoreService.savePrediction(predictionData);
@@ -221,11 +246,13 @@ functions.http('runPrediction', async (req, res) => {
                 date: matchDate.toLocaleDateString('fr-FR'),
                 time: matchDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
                 scores: {},
-                odds: {}
+                odds: {},
+                historicalRates: {}
             };
         }
         predictionsByLeague[pred.leagueName][pred.fixtureId].scores[pred.market] = pred.score;
         predictionsByLeague[pred.leagueName][pred.fixtureId].odds[pred.market] = pred.odd;
+        predictionsByLeague[pred.leagueName][pred.fixtureId].historicalRates[pred.market] = pred.historicalRate;
     }
 
     const finalPredictions = Object.keys(predictionsByLeague).reduce((acc, leagueName) => {
@@ -249,6 +276,6 @@ functions.http('runPrediction', async (req, res) => {
         res.status(200).send(htmlResponse);
     } catch (error) {
         console.error(chalk.red("Erreur lors du déclenchement de la fonction de génération de tickets : "), error.message);
-        res.status(500).send(htmlResponse); // Send report even if trigger fails
+        res.status(500).send(htmlResponse);
     }
 });

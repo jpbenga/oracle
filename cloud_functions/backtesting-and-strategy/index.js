@@ -249,7 +249,8 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
     }
 
     await firestoreService.saveWhitelist(whitelist);
-    console.log(chalk.magenta.bold(`-> Whitelist sauvegardée avec ${Object.keys(whitelist).length} marchés.`));
+    await firestoreService.saveBacktestSummary(perMarketSummary); // Ajout de la sauvegarde du résumé
+    console.log(chalk.magenta.bold(`-> Whitelist et résumé du backtest sauvegardés.`));
     
     const finalReport = { totalMatchesAnalyzed, perMarketSummary, whitelist, calibration: calibrationReport, earlySeasonSummary: earlySeasonTrancheSummary };
     res.status(200).send(generateBacktestingHtml(finalReport));
