@@ -55,10 +55,8 @@ class GestionJourneeService {
         const fixtures = await apiFootballService.getFixturesByRound(leagueId, season, currentRoundName);
         if (!fixtures) return [];
         
-        const upcomingMatches = fixtures.filter((f) => f.fixture.status.short === 'NS');
-        console.log(chalk.green(`      -> ${upcomingMatches.length} match(s) à venir trouvé(s).`));
-        
-        return upcomingMatches;
+        console.log(chalk.green(`      -> ${fixtures.length} match(s) trouvé(s) pour la journée.`));
+        return fixtures;
     }
 }
 
