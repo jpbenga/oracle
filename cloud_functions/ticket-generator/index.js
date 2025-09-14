@@ -38,6 +38,7 @@ function generateTicketsHtml(tickets) {
         .bet { border-bottom: 1px solid #373737; padding: 15px 0; }
         .bet:last-child { border-bottom: none; }
         .bet-match { font-weight: bold; color: #e0e0e0; }
+        .bet-context { font-size: 0.8em; color: #aaa; margin-top: 4px; }
         .bet-market { color: #aaa; font-size: 0.9em; }
         .bet-details { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 10px; margin-top: 8px; font-size: 0.9em; }
         .bet-odd { font-weight: bold; color: #e0e0e0; text-align: right;}
@@ -52,6 +53,7 @@ function generateTicketsHtml(tickets) {
                 betsHtml += `
                     <div class="bet">
                         <div class="bet-match">${bet.matchLabel}</div>
+                        <div class="bet-context">${bet.leagueName} - ${new Date(bet.matchDate).toLocaleDateString('fr-FR', {day: '2-digit', month: '2-digit'})} ${new Date(bet.matchDate).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</div>
                         <div class="bet-market">${bet.market}</div>
                         <div class="bet-details">
                             <span>Confiance:</span> <span class="bet-odd">${bet.score.toFixed(2)}%</span>
