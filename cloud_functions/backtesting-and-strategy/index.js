@@ -69,7 +69,7 @@ function determineAllMarketResults(fixture, projectedHomeGoals, projectedAwayGoa
 }
 
 function generateBacktestingHtml(report) {
-    const { totalMatchesAnalyzed, perMarketSummary, whitelist, calibration } = report;
+    const { totalMatchesAnalyzed, perMarketSummary, whitelist, calibration, earlySeasonSummary } = report;
     const css = `
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
         h1, h2, h3 { color: #bb86fc; border-bottom: 2px solid #373737; padding-bottom: 10px; }
@@ -102,6 +102,15 @@ function generateBacktestingHtml(report) {
     html += `<h2>Bilan Global (Tous Marchés)</h2><div class="card"><table><thead><tr><th>Tranche</th><th>Réussite</th><th>Total</th><th>Taux</th></tr></thead><tbody>`;
     trancheKeys.forEach(key => {
         const tranche = globalSummary[key];
+        const rate = tranche.total > 0 ? (tranche.success / tranche.total) * 100 : 0;
+        const rateClass = rate >= 75 ? 'rate-high' : rate >= 50 ? 'rate-medium' : 'rate-low';
+        html += `<tr class="${rateClass}"><td>${key}%</td><td>${tranche.success}</td><td>${tranche.total}</td><td class="score">${rate.toFixed(2)}%</td></tr>`;
+    });
+    html += `</tbody></table></div>`;
+
+    html += `<h2>Bilan Début de Saison</h2><div class="card"><table><thead><tr><th>Tranche</th><th>Réussite</th><th>Total</th><th>Taux</th></tr></thead><tbody>`;
+    trancheKeys.forEach(key => {
+        const tranche = earlySeasonSummary[key];
         const rate = tranche.total > 0 ? (tranche.success / tranche.total) * 100 : 0;
         const rateClass = rate >= 75 ? 'rate-high' : rate >= 50 ? 'rate-medium' : 'rate-low';
         html += `<tr class="${rateClass}"><td>${key}%</td><td>${tranche.success}</td><td>${tranche.total}</td><td class="score">${rate.toFixed(2)}%</td></tr>`;
@@ -155,6 +164,7 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
 
     let totalMatchesAnalyzed = 0;
     const perMarketSummary = {};
+    const earlySeasonTrancheSummary = initTrancheAnalysis();
     const allBacktestResults = [];
     const season = new Date().getFullYear();
 
@@ -165,10 +175,10 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
         if (finishedMatches && finishedMatches.length > 0) {
             for (const match of finishedMatches) {
                 const analysis = await analyseMatchService.analyseMatch(match);
-                if (!analysis) continue;
+                if (!analysis || !analysis.homeStats) continue;
 
                 totalMatchesAnalyzed++;
-                const isEarlySeason = analysis.homeStats?.fixtures.played.total < 6;
+                const isEarlySeason = analysis.homeStats.fixtures.played.total < 6;
                 const allMarketResults = determineAllMarketResults(match, analysis.projectedHomeGoals, analysis.projectedAwayGoals);
                 
                 const matchResults = [];
@@ -184,7 +194,7 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
     }
     
     if (allBacktestResults.length === 0) {
-        res.status(200).send(generateBacktestingHtml({ perMarketSummary: {}, whitelist: {}, calibration: {}, totalMatchesAnalyzed: 0 }));
+        res.status(200).send(generateBacktestingHtml({ perMarketSummary: {}, whitelist: {}, calibration: {}, totalMatchesAnalyzed: 0, earlySeasonSummary: initTrancheAnalysis() }));
         return;
     }
 
@@ -201,6 +211,13 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
                 tranche.total++;
                 tranche.predictionSum += prediction;
                 if (winStatus === 'WON') tranche.success++;
+
+                if (result.isEarlySeason) {
+                    const earlyTranche = earlySeasonTrancheSummary[trancheKey];
+                    earlyTranche.total++;
+                    earlyTranche.predictionSum += prediction;
+                    if (winStatus === 'WON') earlyTranche.success++;
+                }
             }
         }
     }
@@ -234,6 +251,6 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
     await firestoreService.saveWhitelist(whitelist);
     console.log(chalk.magenta.bold(`-> Whitelist sauvegardée avec ${Object.keys(whitelist).length} marchés.`));
     
-    const finalReport = { totalMatchesAnalyzed, perMarketSummary, whitelist, calibration: calibrationReport };
+    const finalReport = { totalMatchesAnalyzed, perMarketSummary, whitelist, calibration: calibrationReport, earlySeasonSummary };
     res.status(200).send(generateBacktestingHtml(finalReport));
 });
