@@ -55,12 +55,8 @@ class ApiFootballService {
     return this.makeRequest('/teams/statistics', { team: teamId, league: leagueId, season });
   }
 
-  async getOddsForFixture(fixtureId, bookmakerId) {
-    return this.makeRequest('/odds', { fixture: fixtureId, bookmaker: bookmakerId });
-  }
-
-  async getBookmakers() {
-    return this.makeRequest('/odds/bookmakers');
+  async getOddsForFixture(fixtureId) {
+    return this.makeRequest('/odds', { fixture: fixtureId });
   }
 
   async getRounds(leagueId, season) {

@@ -148,7 +148,7 @@ function generatePredictionHtml(predictionsByLeague, status) {
 
 
 functions.http('runPrediction', async (req, res) => {
-    console.log(chalk.blue.bold("--- Démarrage du Job de Prédiction ---"));
+    console.log(chalk.blue.bold("---" + "Démarrage du Job de Prédiction" + "---"));
     
     const season = new Date().getFullYear();
     const eligiblePredictions = [];
@@ -166,14 +166,6 @@ functions.http('runPrediction', async (req, res) => {
     }
     console.log(chalk.green("Whitelist et résumé du backtest chargés avec succès."));
 
-    const bookmakers = await apiFootballService.getBookmakers();
-    if (!bookmakers || bookmakers.length === 0) {
-        const errorHtml = generatePredictionHtml({}, "ERREUR CRITIQUE: Aucun bookmaker disponible via l\'API.");
-        res.status(500).send(errorHtml);
-        return;
-    }
-    console.log(chalk.green(`${bookmakers.length} bookmakers trouvés.`));
-
     for (const league of footballConfig.leaguesToAnalyze) {
         console.log(chalk.cyan.bold(`
 [Prédiction] Analyse de la ligue : ${league.name}`));
@@ -187,19 +179,12 @@ functions.http('runPrediction', async (req, res) => {
             if (analysisResult && analysisResult.markets) {
                 const confidenceScores = analysisResult.markets;
                 
-                let combinedParsedOdds = {};
-                for (const bookmaker of bookmakers) {
-                    const singleBookmakerOdds = await apiFootballService.getOddsForFixture(match.fixture.id, bookmaker.id);
-                    if (singleBookmakerOdds && singleBookmakerOdds.length > 0) {
-                        const parsedFromThisBookmaker = parseOdds(singleBookmakerOdds);
-                        for (const market in parsedFromThisBookmaker) {
-                            if (!combinedParsedOdds[market]) {
-                                combinedParsedOdds[market] = parsedFromThisBookmaker[market];
-                            }
-                        }
-                    }
-                }
-                const parsedOdds = combinedParsedOdds;
+                console.log(chalk.blue(`      -> Récupération des cotes pour le match ID: ${match.fixture.id}`));
+                const oddsData = await apiFootballService.getOddsForFixture(match.fixture.id);
+                console.log(`      -> Cotes reçues de l'API: ${oddsData && oddsData.length > 0 ? `${oddsData[0].bookmakers.length} bookmakers` : 'Aucune'}`);
+
+                const parsedOdds = parseOdds(oddsData || []);
+                console.log(`      -> Cotes interprétées: ${Object.keys(parsedOdds).length} cotes trouvées.`);
 
                 for (const market in confidenceScores) {
                     const score = confidenceScores[market];
@@ -262,7 +247,9 @@ functions.http('runPrediction', async (req, res) => {
 
     const status = `Prédictions prêtes. ${eligiblePredictions.length} marchés éligibles trouvés.`;
     console.log(chalk.blue.bold(`
---- ${status} ---`));
+---
+${status}
+---`));
     const htmlResponse = generatePredictionHtml(finalPredictions, status);
 
     try {
