@@ -64,6 +64,12 @@ function parseOdds(oddsData) {
             switch (bet.id) {
                 case 5: bet.values.forEach(v => { const k = `match_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
                 case 8: bet.values.forEach(v => { const k = v.value === 'Yes' ? 'btts' : 'btts_no'; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
+                case 16: bet.values.forEach(v => { const k = `home_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
+                case 17: bet.values.forEach(v => { const k = `away_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
+                case 6: bet.values.forEach(v => { const k = `ht_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
+                case 26: bet.values.forEach(v => { const k = `st_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
+                case 105: bet.values.forEach(v => { const k = `home_ht_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
+                case 106: bet.values.forEach(v => { const k = `away_ht_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
             }
         }
     }
@@ -137,7 +143,7 @@ function generatePredictionHtml(predictionsByLeague, status) {
 
 
 functions.http('runPrediction', async (req, res) => {
-    console.log(chalk.blue.bold("--- Démarrage du Job de Prédiction ---"));
+    console.log(chalk.blue.bold("---" + "Démarrage du Job de Prédiction" + "---"));
     
     const season = new Date().getFullYear();
     const eligiblePredictions = [];
@@ -222,7 +228,9 @@ functions.http('runPrediction', async (req, res) => {
 
     const status = `Prédictions prêtes. ${eligiblePredictions.length} marchés éligibles trouvés.`;
     console.log(chalk.blue.bold(`
---- ${status} ---`));
+---
+${status}
+---`));
     const htmlResponse = generatePredictionHtml(finalPredictions, status);
 
     try {
