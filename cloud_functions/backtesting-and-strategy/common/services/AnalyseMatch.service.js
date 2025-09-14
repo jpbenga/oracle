@@ -187,9 +187,9 @@ class AnalyseMatchService {
       markets[`match_${key}`] = matchProbs[key];
     }
 
-    if (markets['draw']) markets['draw'] *= 1.2;
-    if (markets['favorite_win']) markets['favorite_win'] *= 1.2;
-    if (markets['outsider_win']) markets['outsider_win'] *= 1.2;
+    if (markets['draw']) markets['draw'] = Math.min(100, markets['draw'] * 1.2);
+    if (markets['favorite_win']) markets['favorite_win'] = Math.min(100, markets['favorite_win'] * 1.2);
+    if (markets['outsider_win']) markets['outsider_win'] = Math.min(100, markets['outsider_win'] * 1.2);
 
     return { markets, projectedHomeGoals, projectedAwayGoals, homeStats, awayStats };
   }
