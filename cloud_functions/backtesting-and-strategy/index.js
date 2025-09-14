@@ -169,7 +169,8 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
     const season = new Date().getFullYear();
 
     for (const league of footballConfig.leaguesToAnalyze) {
-        console.log(chalk.cyan(`\n[Backtest] Analyse de la ligue : ${league.name}`));
+        console.log(chalk.cyan(`
+[Backtest] Analyse de la ligue : ${league.name}`));
         const finishedMatches = await gestionJourneeService.getMatchesForBacktesting(league.id, season);
 
         if (finishedMatches && finishedMatches.length > 0) {
@@ -248,10 +249,23 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
         }
     }
 
-    await firestoreService.saveWhitelist(whitelist);
-    await firestoreService.saveBacktestSummary(perMarketSummary); // Ajout de la sauvegarde du résumé
-    console.log(chalk.magenta.bold(`-> Whitelist et résumé du backtest sauvegardés.`));
-    
+    const executionId = `backtest-run-${new Date().toISOString()}`;
+    console.log(chalk.blue.bold(`Execution ID: ${executionId}`));
+
     const finalReport = { totalMatchesAnalyzed, perMarketSummary, whitelist, calibration: calibrationReport, earlySeasonSummary: earlySeasonTrancheSummary };
-    res.status(200).send(generateBacktestingHtml(finalReport));
+    const reportHtml = generateBacktestingHtml(finalReport);
+
+    const runData = {
+        summary: perMarketSummary,
+        whitelist: whitelist,
+        calibration: calibrationReport,
+        earlySeasonSummary: earlySeasonTrancheSummary,
+        totalMatchesAnalyzed: totalMatchesAnalyzed,
+        reportHtml: reportHtml
+    };
+
+    await firestoreService.saveBacktestRun(executionId, runData);
+    console.log(chalk.magenta.bold(`-> Backtest run ${executionId} sauvegardé.`));
+    
+    res.status(200).send(reportHtml);
 });

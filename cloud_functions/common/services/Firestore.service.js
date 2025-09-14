@@ -3,8 +3,9 @@ const chalk = require('chalk');
 
 class FirestoreService {
   constructor() {
-    this.db = new Firestore();
-    this.BACKTEST_SUMMARY_DOC_PATH = 'system_reports/backtest_summary';
+    this.db = new Firestore({
+      projectId: 'oracle-prediction-firebase'
+    });
   }
 
   async testConnection() {
@@ -30,7 +31,15 @@ class FirestoreService {
   }
 
   async savePrediction(prediction) {
-    const docRef = await this.db.collection('predictions').add(prediction);
+    const oneYearFromNow = new Date();
+    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+    
+    const predictionToSave = {
+      ...prediction,
+      expireAt: oneYearFromNow,
+    };
+
+    const docRef = await this.db.collection('predictions').add(predictionToSave);
     return docRef.id;
   }
     
@@ -64,7 +73,15 @@ class FirestoreService {
   }
   
   async saveTicket(ticket) {
-      await this.db.collection('tickets').add(ticket);
+      const oneYearFromNow = new Date();
+      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+      
+      const ticketToSave = {
+        ...ticket,
+        expireAt: oneYearFromNow,
+      };
+
+      await this.db.collection('tickets').add(ticketToSave);
   }
 
   async getPendingItems() {
@@ -89,9 +106,13 @@ class FirestoreService {
       await this.db.collection('tickets').doc(ticketId).update({ status });
   }
 
-  async saveBacktestResult(result) {
+  async saveBacktestResult(result, executionId) {
     const docRef = this.db.collection('backtest_results').doc(String(result.matchId));
-    await docRef.set(result);
+    const resultToSave = {
+      ...result,
+      executionId: executionId,
+    };
+    await docRef.set(resultToSave, { merge: true });
     return docRef.id;
   }
 
@@ -102,27 +123,36 @@ class FirestoreService {
         .filter(doc => doc && Array.isArray(doc.markets));
   }
 
-  async saveBacktestSummary(summary) {
-    const docRef = this.db.doc(this.BACKTEST_SUMMARY_DOC_PATH);
-    await docRef.set(summary);
+  async saveBacktestRun(executionId, runData) {
+    const docRef = this.db.collection('backtest_runs').doc(executionId);
+    
+    const oneYearFromNow = new Date();
+    oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+    
+    const dataToSave = {
+      ...runData,
+      executionId: executionId,
+      createdAt: new Date(),
+      expireAt: oneYearFromNow,
+    };
+
+    await docRef.set(dataToSave);
+    console.log(chalk.green(`[Firestore Service] Backtest run ${executionId} saved successfully.`));
   }
 
-  async getBacktestSummary() {
-    const docRef = this.db.doc(this.BACKTEST_SUMMARY_DOC_PATH);
-    const doc = await docRef.get();
-    return doc.exists ? doc.data() : null;
-  }
+  async getLatestBacktestRun() {
+    const snapshot = await this.db.collection('backtest_runs')
+      .orderBy('createdAt', 'desc')
+      .limit(1)
+      .get();
 
-  async saveWhitelist(whitelist) {
-    const docRef = this.db.collection('strategy').doc('whitelist');
-    await docRef.set(whitelist);
-    console.log(chalk.green('[Firestore Service] Whitelist sauvegardée avec succès.'));
-  }
-
-  async getWhitelist() {
-    const docRef = this.db.collection('strategy').doc('whitelist');
-    const doc = await docRef.get();
-    return doc.exists ? doc.data() : null;
+    if (snapshot.empty) {
+      console.log(chalk.yellow('[Firestore Service] No backtest runs found.'));
+      return null;
+    }
+    
+    console.log(chalk.green('[Firestore Service] Latest backtest run loaded successfully.'));
+    return snapshot.docs[0].data();
   }
 
   async getTicketsForDate(date) {

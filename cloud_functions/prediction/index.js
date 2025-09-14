@@ -153,18 +153,18 @@ functions.http('runPrediction', async (req, res) => {
     const season = new Date().getFullYear();
     const eligiblePredictions = [];
 
-    const [whitelist, backtestSummary] = await Promise.all([
-        firestoreService.getWhitelist(),
-        firestoreService.getBacktestSummary()
-    ]);
+    const latestRun = await firestoreService.getLatestBacktestRun();
 
-    if (!whitelist || !backtestSummary) {
-        const errorMsg = "ERREUR CRITIQUE: Whitelist ou résumé du backtest non trouvé. Le backtesting doit être exécuté d'abord.";
+    if (!latestRun || !latestRun.whitelist || !latestRun.summary) {
+        const errorMsg = "ERREUR CRITIQUE: Aucune exécution de backtest valide (contenant une whitelist et un résumé) n'a été trouvée. Le backtesting doit être exécuté d'abord.";
         const errorHtml = generatePredictionHtml({}, errorMsg);
         res.status(500).send(errorHtml);
         return;
     }
-    console.log(chalk.green("Whitelist et résumé du backtest chargés avec succès."));
+
+    const { whitelist, summary: backtestSummary, executionId } = latestRun;
+    console.log(chalk.green(`Whitelist et résumé chargés avec succès depuis l'exécution: ${executionId}`));
+
 
     for (const league of footballConfig.leaguesToAnalyze) {
         console.log(chalk.cyan.bold(`
@@ -200,6 +200,7 @@ functions.http('runPrediction', async (req, res) => {
                         console.log(chalk.green.bold(`       -> Marché ${market} (score: ${score.toFixed(2)}%) VALIDÉ. Taux hist: ${historicalRate ? historicalRate.toFixed(2) + '%' : 'N/A'}. Cote: ${odd ? odd : 'N/A'}`));
                         
                         const predictionData = {
+                            backtestExecutionId: executionId,
                             fixtureId: match.fixture.id,
                             matchLabel: `${match.teams.home.name} vs ${match.teams.away.name}`,
                             matchDate: new Date(match.fixture.date).toISOString(),
