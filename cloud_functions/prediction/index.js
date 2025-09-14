@@ -171,9 +171,14 @@ functions.http('runPrediction', async (req, res) => {
             const analysisResult = await analyseMatchService.analyseMatch(match);
             if (analysisResult && analysisResult.markets) {
                 const confidenceScores = analysisResult.markets;
-                const oddsData = await apiFootballService.getOddsForFixture(match.fixture.id);
-                const parsedOdds = parseOdds(oddsData || []);
                 
+                console.log(chalk.blue(`      -> Récupération des cotes pour le match ID: ${match.fixture.id}`));
+                const oddsData = await apiFootballService.getOddsForFixture(match.fixture.id);
+                console.log(`      -> Cotes reçues de l'API: ${oddsData && oddsData.length > 0 ? `${oddsData[0].bookmakers.length} bookmakers` : 'Aucune'}`);
+
+                const parsedOdds = parseOdds(oddsData || []);
+                console.log(`      -> Cotes interprétées: ${Object.keys(parsedOdds).length} cotes trouvées.`);
+
                 for (const market in confidenceScores) {
                     const score = confidenceScores[market];
                     if (typeof score === 'undefined') continue;
@@ -181,7 +186,9 @@ functions.http('runPrediction', async (req, res) => {
                     if (!trancheKey) continue;
 
                     if (whitelist[market] && whitelist[market].includes(trancheKey)) {
-                        console.log(chalk.green.bold(`       -> Marché ${market} (score: ${score.toFixed(2)}%) VALIDÉ par la whitelist.`));
+                        const odd = parsedOdds[market];
+                        console.log(chalk.green.bold(`       -> Marché ${market} (score: ${score.toFixed(2)}%) VALIDÉ. Recherche de cote... ${odd ? `Trouvée: ${odd}`: 'Non trouvée'}`));
+                        
                         const predictionData = {
                             fixtureId: match.fixture.id,
                             matchLabel: `${match.teams.home.name} vs ${match.teams.away.name}`,
@@ -190,8 +197,8 @@ functions.http('runPrediction', async (req, res) => {
                             leagueName: league.name,
                             market: market,
                             score: score,
-                            odd: parsedOdds[market] || null,
-                            status: parsedOdds[market] ? 'ELIGIBLE' : 'INCOMPLETE',
+                            odd: odd || null,
+                            status: odd ? 'ELIGIBLE' : 'INCOMPLETE',
                         };
                         eligiblePredictions.push(predictionData);
                         await firestoreService.savePrediction(predictionData);
@@ -228,9 +235,7 @@ functions.http('runPrediction', async (req, res) => {
 
     const status = `Prédictions prêtes. ${eligiblePredictions.length} marchés éligibles trouvés.`;
     console.log(chalk.blue.bold(`
----
-${status}
----`));
+--- ${status} ---`));
     const htmlResponse = generatePredictionHtml(finalPredictions, status);
 
     try {
