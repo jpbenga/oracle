@@ -69,15 +69,15 @@ function determineAllMarketResults(fixture, projectedHomeGoals, projectedAwayGoa
 }
 
 function generateBacktestingHtml(report) {
-    const { totalMatchesAnalyzed, perMarketSummary, whitelist, marketOccurrences, calibration, earlySeasonSummary } = report;
+    const { totalMatchesAnalyzed, perMarketSummary, whitelist, calibration } = report;
     const css = `
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
         h1, h2, h3 { color: #bb86fc; border-bottom: 2px solid #373737; padding-bottom: 10px; }
         h1 { font-size: 2.2em; text-align: center; }
         h2 { font-size: 1.8em; margin-top: 40px; }
         h3 { font-size: 1.4em; margin-top: 30px; border-bottom: 1px solid #373737; }
-        .status { background-color: #1e1e1e; border: 1px solid #373737; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em; }
-        .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .status { background-color: #1e1e1e; border: 1px solid #373737; padding: 20px; border-radius: 8px; margin-bottom: 40px; text-align: center; font-size: 1.5em; font-weight: bold; }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px; }
         .card { background-color: #1e1e1e; border: 1px solid #373737; border-radius: 8px; padding: 20px; }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #373737; }
@@ -98,15 +98,13 @@ function generateBacktestingHtml(report) {
             globalSummary[key].success += perMarketSummary[market][key].success; 
             globalSummary[key].total += perMarketSummary[market][key].total; 
         } 
-    } 
+    }
     html += `<h2>Bilan Global (Tous Marchés)</h2><div class="card"><table><thead><tr><th>Tranche</th><th>Réussite</th><th>Total</th><th>Taux</th></tr></thead><tbody>`;
     trancheKeys.forEach(key => {
         const tranche = globalSummary[key];
-        if (tranche.total > 0) {
-            const rate = (tranche.success / tranche.total) * 100;
-            const rateClass = rate >= 75 ? 'rate-high' : rate >= 50 ? 'rate-medium' : 'rate-low';
-            html += `<tr class="${rateClass}"><td>${key}%</td><td>${tranche.success}</td><td>${tranche.total}</td><td class="score">${rate.toFixed(2)}%</td></tr>`;
-        }
+        const rate = tranche.total > 0 ? (tranche.success / tranche.total) * 100 : 0;
+        const rateClass = rate >= 75 ? 'rate-high' : rate >= 50 ? 'rate-medium' : 'rate-low';
+        html += `<tr class="${rateClass}"><td>${key}%</td><td>${tranche.success}</td><td>${tranche.total}</td><td class="score">${rate.toFixed(2)}%</td></tr>`;
     });
     html += `</tbody></table></div>`;
 
@@ -133,7 +131,7 @@ function generateBacktestingHtml(report) {
     html += `<h2>Calibration du Modèle</h2><div class="card"><table><thead><tr><th>Marché</th><th>Tranche</th><th>Prédit</th><th>Réel</th></tr></thead><tbody>`;
     Object.keys(calibration).sort().forEach(market => {
         trancheKeys.forEach(key => {
-            if (calibration[market][key]) {
+            if (calibration[market] && calibration[market][key]) {
                 const { predicted, actual } = calibration[market][key];
                 html += `<tr><td>${market}</td><td>${key}%</td><td>${predicted}%</td><td>${actual}%</td></tr>`;
             }
@@ -147,7 +145,7 @@ function generateBacktestingHtml(report) {
 
 
 functions.http('runBacktestingAndStrategy', async (req, res) => {
-    console.log(chalk.blue.bold("--- Démarrage du Job de Backtesting & Stratégie ---"));
+    console.log(chalk.blue.bold("---" + " Démarrage du Job de Backtesting & Stratégie " + "---"));
 
     const isDbConnected = await firestoreService.testConnection();
     if (!isDbConnected) {
@@ -156,42 +154,37 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
     }
 
     let totalMatchesAnalyzed = 0;
-    const marketOccurrences = {};
     const perMarketSummary = {};
-    const earlySeasonTrancheSummary = initTrancheAnalysis();
     const allBacktestResults = [];
     const season = new Date().getFullYear();
 
     for (const league of footballConfig.leaguesToAnalyze) {
-        console.log(chalk.cyan(`
-[Backtest] Analyse de la ligue : ${league.name}`));
+        console.log(chalk.cyan(`\n[Backtest] Analyse de la ligue : ${league.name}`));
         const finishedMatches = await gestionJourneeService.getMatchesForBacktesting(league.id, season);
 
         if (finishedMatches && finishedMatches.length > 0) {
             for (const match of finishedMatches) {
-                totalMatchesAnalyzed++;
-                console.log(chalk.green(`   -> Analyse du match : ${match.teams.home.name} vs ${match.teams.away.name}`));
                 const analysis = await analyseMatchService.analyseMatch(match);
+                if (!analysis) continue;
 
-                if (analysis && analysis.markets) {
-                    const allMarketResults = determineAllMarketResults(match, analysis.projectedHomeGoals, analysis.projectedAwayGoals);
-                    for (const market in allMarketResults) { if (allMarketResults[market] === 'WON') { marketOccurrences[market] = (marketOccurrences[market] || 0) + 1; } }
-
-                    const matchResults = [];
-                    for (const market in analysis.markets) {
-                        const result = allMarketResults[market];
-                        if(result) {
-                            matchResults.push({ market: market, prediction: analysis.markets[market], result: result });
-                        }
+                totalMatchesAnalyzed++;
+                const isEarlySeason = analysis.homeStats?.fixtures.played.total < 6;
+                const allMarketResults = determineAllMarketResults(match, analysis.projectedHomeGoals, analysis.projectedAwayGoals);
+                
+                const matchResults = [];
+                for (const market in analysis.markets) {
+                    const result = allMarketResults[market];
+                    if(result) {
+                        matchResults.push({ market: market, prediction: analysis.markets[market], result: result });
                     }
-                    allBacktestResults.push({ matchId: match.fixture.id, markets: matchResults, isEarlySeason: (match.league.round.match(/(\d+)/)?.[0] || 10) < 6 });
                 }
+                allBacktestResults.push({ matchId: match.fixture.id, markets: matchResults, isEarlySeason: isEarlySeason });
             }
         }
     }
     
     if (allBacktestResults.length === 0) {
-        res.status(200).send(generateBacktestingHtml({ perMarketSummary: {}, whitelist: {}, marketOccurrences: {}, calibration: {}, earlySeasonSummary: initTrancheAnalysis(), totalMatchesAnalyzed: 0 }));
+        res.status(200).send(generateBacktestingHtml({ perMarketSummary: {}, whitelist: {}, calibration: {}, totalMatchesAnalyzed: 0 }));
         return;
     }
 
@@ -208,13 +201,6 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
                 tranche.total++;
                 tranche.predictionSum += prediction;
                 if (winStatus === 'WON') tranche.success++;
-
-                if (result.isEarlySeason) {
-                    const earlyTranche = earlySeasonTrancheSummary[trancheKey];
-                    earlyTranche.total++;
-                    earlyTranche.predictionSum += prediction;
-                    if (winStatus === 'WON') earlyTranche.success++;
-                }
             }
         }
     }
@@ -248,6 +234,6 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
     await firestoreService.saveWhitelist(whitelist);
     console.log(chalk.magenta.bold(`-> Whitelist sauvegardée avec ${Object.keys(whitelist).length} marchés.`));
     
-    const finalReport = { totalMatchesAnalyzed, perMarketSummary, whitelist, marketOccurrences, calibration: calibrationReport, earlySeasonSummary };
+    const finalReport = { totalMatchesAnalyzed, perMarketSummary, whitelist, calibration: calibrationReport };
     res.status(200).send(generateBacktestingHtml(finalReport));
 });

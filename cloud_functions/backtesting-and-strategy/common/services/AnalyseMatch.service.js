@@ -191,7 +191,7 @@ class AnalyseMatchService {
     if (markets['favorite_win']) markets['favorite_win'] *= 1.2;
     if (markets['outsider_win']) markets['outsider_win'] *= 1.2;
 
-    return { markets, projectedHomeGoals, projectedAwayGoals };
+    return { markets, projectedHomeGoals, projectedAwayGoals, homeStats, awayStats };
   }
 }
 
