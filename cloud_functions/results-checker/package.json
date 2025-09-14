@@ -1,0 +1,11 @@
+{
+  "name": "results-checker",
+  "version": "1.0.0",
+  "main": "index.js",
+  "dependencies": {
+    "@google-cloud/functions-framework": "^3.0.0",
+    "@google-cloud/firestore": "^7.0.0",
+    "axios": "^1.0.0",
+    "chalk": "^4.0.0"
+  }
+}
