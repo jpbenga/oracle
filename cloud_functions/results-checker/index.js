@@ -1,7 +1,7 @@
 const functions = require('@google-cloud/functions-framework');
 const chalk = require('chalk');
-const { firestoreService } = require('./common/services/Firestore.service');
-const { apiFootballService } = require('./common/services/ApiFootball.service');
+const { firestoreService } = require('../common/services/Firestore.service');
+const { apiFootballService } = require('../common/services/ApiFootball.service');
 
 function determineResultsFromFixture(fixture) {
     const results = {};
@@ -18,12 +18,33 @@ function determineResultsFromFixture(fixture) {
     results['btts_no'] = !(ff.home > 0 && ff.away > 0) ? 'WON' : 'LOST';
 
     [0.5, 1.5, 2.5, 3.5, 4.5, 5.5].forEach(t => {
+        // Match
         results[`match_over_${t}`] = (ff.home + ff.away > t) ? 'WON' : 'LOST';
         results[`match_under_${t}`] = (ff.home + ff.away < t) ? 'WON' : 'LOST';
+        // Halftime
         results[`ht_over_${t}`] = (fh.home + fh.away > t) ? 'WON' : 'LOST';
         results[`ht_under_${t}`] = (fh.home + fh.away < t) ? 'WON' : 'LOST';
+        // Secondtime
         results[`st_over_${t}`] = (sh.home + sh.away > t) ? 'WON' : 'LOST';
         results[`st_under_${t}`] = (sh.home + sh.away < t) ? 'WON' : 'LOST';
+        // Home
+        results[`home_over_${t}`] = (ff.home > t) ? 'WON' : 'LOST';
+        results[`home_under_${t}`] = (ff.home < t) ? 'WON' : 'LOST';
+        // Away
+        results[`away_over_${t}`] = (ff.away > t) ? 'WON' : 'LOST';
+        results[`away_under_${t}`] = (ff.away < t) ? 'WON' : 'LOST';
+        // Home Halftime
+        results[`home_ht_over_${t}`] = (fh.home > t) ? 'WON' : 'LOST';
+        results[`home_ht_under_${t}`] = (fh.home < t) ? 'WON' : 'LOST';
+        // Away Halftime
+        results[`away_ht_over_${t}`] = (fh.away > t) ? 'WON' : 'LOST';
+        results[`away_ht_under_${t}`] = (fh.away < t) ? 'WON' : 'LOST';
+        // Home Secondtime
+        results[`home_st_over_${t}`] = (sh.home > t) ? 'WON' : 'LOST';
+        results[`home_st_under_${t}`] = (sh.home < t) ? 'WON' : 'LOST';
+        // Away Secondtime
+        results[`away_st_over_${t}`] = (sh.away > t) ? 'WON' : 'LOST';
+        results[`away_st_under_${t}`] = (sh.away < t) ? 'WON' : 'LOST';
     });
     return results;
 }
@@ -157,7 +178,7 @@ functions.http('resultsChecker', async (req, res) => {
         for (const id of fixturesToQuery) {
             const fixture = await apiFootballService.getMatchById(id);
             if (fixture) fixtures.push(fixture);
-            
+            await new Promise(resolve => setTimeout(resolve, 300)); // Délai pour ne pas surcharger l'API
         }
 
         if (fixtures.length === 0) {
