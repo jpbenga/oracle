@@ -54,12 +54,74 @@ function parseOdds(oddsData) {
     return parsed;
 }
 
+function generatePredictionHtml(predictions) {
+    const css = `
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
+        h1 { color: #1d2129; border-bottom: 2px solid #e9ebee; padding-bottom: 10px; font-size: 2em; }
+        p { color: #606770; font-size: 1.1em; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); background: #fff; }
+        th, td { padding: 12px 15px; text-align: left; border: 1px solid #e9ebee; }
+        thead { background-color: #333; color: #fff; }
+        tbody tr:nth-child(even) { background-color: #f6f7f9; }
+        tbody tr:hover { background-color: #e9ebee; }
+        .container { max-width: 1400px; margin: auto; background: #fff; padding: 20px 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .status-ELIGIBLE { color: #28a745; font-weight: bold; }
+        .status-INCOMPLETE { color: #f0ad4e; font-weight: bold; }
+        .no-data { text-align: center; padding: 20px; font-style: italic; color: #888; }
+    `;
+
+    let tableHtml = '<table><thead><tr><th>Date</th><th>Match</th><th>Ligue</th><th>Marché</th><th>Score Confiance</th><th>Cote</th><th>Statut</th></tr></thead><tbody>';
+    
+    if (predictions.length > 0) {
+        predictions.sort((a, b) => new Date(a.matchDate) - new Date(b.matchDate));
+
+        for (const pred of predictions) {
+            const matchDate = new Date(pred.matchDate);
+            const formattedDate = `${matchDate.getDate().toString().padStart(2, '0')}/${(matchDate.getMonth() + 1).toString().padStart(2, '0')}/${matchDate.getFullYear()}`;
+            const statusClass = `status-${pred.status}`;
+            tableHtml += `
+                <tr>
+                    <td>${formattedDate}</td>
+                    <td>${pred.matchLabel}</td>
+                    <td>${pred.leagueName}</td>
+                    <td>${pred.market}</td>
+                    <td><b>${pred.score.toFixed(2)}%</b></td>
+                    <td>${pred.odd || 'N/A'}</td>
+                    <td class="${statusClass}">${pred.status}</td>
+                </tr>
+            `;
+        }
+    } else {
+        tableHtml += '<tr><td colspan="7" class="no-data">Aucune prédiction éligible trouvée.</td></tr>';
+    }
+
+    tableHtml += '</tbody></table>';
+
+    return `
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="UTF-8">
+            <title>Rapport de Prédiction</title>
+            <style>${css}</style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Rapport de Prédiction</h1>
+                <p>Liste de toutes les prédictions jugées éligibles car leur couple (marché, tranche de confiance) a été trouvé dans la whitelist.</p>
+                ${tableHtml}
+            </div>
+        </body>
+        </html>
+    `;
+}
+
 
 functions.http('runPrediction', async (req, res) => {
-    console.log(chalk.blue.bold("--- Démarrage du Job de Prédiction ---"));
+    console.log(chalk.blue.bold("---" + "Démarrage du Job de Prédiction" + "---"));
     
     const season = new Date().getFullYear();
-    let totalPredictionsSaved = 0;
+    const eligiblePredictions = [];
 
     const whitelist = await firestoreService.getWhitelist();
     if (!whitelist) {
@@ -89,7 +151,6 @@ functions.http('runPrediction', async (req, res) => {
                 const oddsData = await apiFootballService.getOddsForFixture(match.fixture.id);
                 const parsedOdds = parseOdds(oddsData || []);
                 
-                let savedCount = 0;
                 for (const market in confidenceScores) {
                     const score = confidenceScores[market];
                     if (typeof score === 'undefined') continue;
@@ -120,33 +181,29 @@ functions.http('runPrediction', async (req, res) => {
                         status: status,
                         createdAt: new Date().toISOString()
                     };
-
+                    eligiblePredictions.push(predictionData);
                     await firestoreService.savePrediction(predictionData);
-                    savedCount++;
-                }
-                
-                if (savedCount > 0) {
-                    totalPredictionsSaved += savedCount;
                 }
                 await sleep(500);
             }
         }
     }
     
-    console.log(chalk.blue.bold(`\n--- Total de ${totalPredictionsSaved} prédictions sauvegardées ---`));
-    
+    console.log(chalk.blue.bold(`\n--- Total de ${eligiblePredictions.length} prédictions sauvegardées ---`));
+    const htmlResponse = generatePredictionHtml(eligiblePredictions);
+
     try {
         console.log(chalk.green("Déclenchement de la fonction de génération de tickets..."));
         const ticketGeneratorUrl = process.env.TICKET_FUNCTION_URL;
         if (ticketGeneratorUrl && ticketGeneratorUrl !== 'placeholder') {
             await axios.get(ticketGeneratorUrl, { timeout: 300000 });
-            res.status(200).send("Prédiction terminée, génération de tickets déclenchée.");
+            res.status(200).send(htmlResponse);
         } else {
              console.log(chalk.yellow("URL du générateur de tickets non configurée. Arrêt de la chaîne."));
-             res.status(200).send("Prédiction terminée, URL du générateur de tickets non configurée.");
+             res.status(200).send(htmlResponse);
         }
     } catch (error) {
-        console.error(chalk.red("Erreur lors du déclenchement de la fonction de génération de tickets :"), error.message);
+        console.error(chalk.red("Erreur lors du déclenchement de la fonction de génération de tickets : "), error.message);
         res.status(500).send("Erreur lors du déclenchement de la fonction suivante.");
     }
 });

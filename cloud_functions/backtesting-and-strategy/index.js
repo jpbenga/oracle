@@ -45,15 +45,110 @@ function determineMarketResult(match, market) {
     }
 }
 
+function generateBacktestingHtml(summary, whitelist) {
+    const css = `
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
+        h1, h2 { color: #1d2129; border-bottom: 2px solid #e9ebee; padding-bottom: 10px; }
+        h1 { font-size: 2em; }
+        h2 { font-size: 1.5em; margin-top: 40px;}
+        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); background: #fff; }
+        th, td { padding: 12px 15px; text-align: left; border: 1px solid #e9ebee; }
+        thead { background-color: #333; color: #fff; }
+        tbody tr:nth-child(even) { background-color: #f6f7f9; }
+        tbody tr:hover { background-color: #e9ebee; }
+        .container { max-width: 1400px; margin: auto; background: #fff; padding: 20px 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .rate { font-weight: bold; }
+        .rate-high { color: #28a745; }
+        .rate-medium { color: #f0ad4e; }
+        .rate-low { color: #d9534f; }
+        .whitelist-box { background-color: #e9f7ef; border-left: 5px solid #28a745; padding: 15px; margin-top: 20px; border-radius: 5px; }
+        .no-data { text-align: center; padding: 20px; font-style: italic; color: #888; }
+    `;
+
+    let summaryHtml = '<h2>Analyse par Marché et Tranche de Confiance</h2><table><thead><tr><th>Marché</th><th>Tranche</th><th>Taux de Réussite</th><th>Succès</th><th>Total</th></tr></thead><tbody>';
+    const sortedMarkets = Object.keys(summary).sort();
+
+    for (const market of sortedMarkets) {
+        const sortedTranches = Object.keys(summary[market]).sort((a, b) => {
+            const aVal = parseInt(a.split('-')[0]);
+            const bVal = parseInt(b.split('-')[0]);
+            return bVal - aVal;
+        });
+
+        for (const tranche of sortedTranches) {
+            const data = summary[market][tranche];
+            if (data.total === 0) continue;
+            const rate = (data.success / data.total) * 100;
+            let rateClass = 'rate-low';
+            if (rate >= 85) rateClass = 'rate-high';
+            else if (rate >= 70) rateClass = 'rate-medium';
+            
+            summaryHtml += `
+                <tr>
+                    <td>${market}</td>
+                    <td><b>${tranche}%</b></td>
+                    <td class="rate ${rateClass}">${rate.toFixed(2)}%</td>
+                    <td>${data.success}</td>
+                    <td>${data.total}</td>
+                </tr>
+            `;
+        }
+    }
+    summaryHtml += '</tbody></table>';
+
+    let whitelistHtml = '<h2>Whitelist Générée (&gt;85% de réussite)</h2>';
+    if (Object.keys(whitelist).length > 0) {
+        whitelistHtml += '<table><thead><tr><th>Marché</th><th>Tranches Validées</th></tr></thead><tbody>';
+        const sortedWhitelistMarkets = Object.keys(whitelist).sort();
+        for (const market of sortedWhitelistMarkets) {
+            whitelistHtml += `
+                <tr>
+                    <td>${market}</td>
+                    <td><b>${whitelist[market].join(', ')}</b></td>
+                </tr>
+            `;
+        }
+        whitelistHtml += '</tbody></table>';
+    } else {
+        whitelistHtml += '<div class="no-data"><p>Aucun marché n\'a atteint le seuil de 85% pour être ajouté à la whitelist.</p></div>';
+    }
+
+    return `
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="UTF-8">
+            <title>Rapport de Backtesting</title>
+            <style>${css}</style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Rapport de Backtesting</h1>
+                ${summaryHtml}
+                ${whitelistHtml}
+            </div>
+        </body>
+        </html>
+    `;
+}
+
 
 functions.http('runBacktestingAndStrategy', async (req, res) => {
     console.log(chalk.blue.bold("--- Démarrage du Job de Backtesting & Stratégie ---"));
+
+    const isDbConnected = await firestoreService.testConnection();
+    if (!isDbConnected) {
+        console.error(chalk.red.bold("Arrêt du job : la connexion à Firestore a échoué."));
+        res.status(500).send("CRITICAL: Firestore connection failed.");
+        return;
+    }
 
     const allBacktestResults = [];
     const season = new Date().getFullYear();
 
     for (const league of footballConfig.leaguesToAnalyze) {
-        console.log(chalk.cyan(`\n[Backtest] Analyse de la ligue : ${league.name}`));
+        console.log(chalk.cyan(`
+[Backtest] Analyse de la ligue : ${league.name}`));
         const finishedMatches = await gestionJourneeService.getMatchesForBacktesting(league.id, season);
 
         if (finishedMatches && finishedMatches.length > 0) {
@@ -83,8 +178,8 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
     }
     
     if (allBacktestResults.length === 0) {
-        console.log(chalk.yellow("Aucun résultat de backtest à analyser."));
-        res.status(200).send("Aucun backtest à analyser.");
+        const html = generateBacktestingHtml({}, {});
+        res.status(200).send(html);
         return;
     }
 
@@ -134,7 +229,8 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
     await firestoreService.saveWhitelist(whitelist);
     console.log(chalk.magenta.bold(`-> Whitelist sauvegardée avec ${Object.keys(whitelist).length} marchés.`));
     
-    res.status(200).send("Backtesting terminé.");
+    const htmlResponse = generateBacktestingHtml(perMarketSummary, whitelist);
+    res.status(200).send(htmlResponse);
 
     // try {
     //     console.log(chalk.green("Déclenchement de la fonction de prédiction..."));
