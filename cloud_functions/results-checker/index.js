@@ -3,47 +3,102 @@ const chalk = require('chalk');
 const { firestoreService } = require('./common/services/Firestore.service');
 const { apiFootballService } = require('./common/services/ApiFootball.service');
 
-// Cette fonction détermine le résultat d'un pari pour un marché donné
-function determineMarketResult(fixture, market) {
+function determineResultsFromFixture(fixture) {
+    const results = {};
     const ff = fixture.goals;
-    if (ff.home === null || ff.away === null) return 'PENDING';
+    const fh = fixture.score.halftime;
+    if (ff.home === null || ff.away === null || fh.home === null || fh.away === null) return {};
 
-    const didHomeWin = ff.home > ff.away;
-    const didAwayWin = ff.away > ff.home;
-    const wasDraw = ff.home === ff.away;
+    results['home_win'] = ff.home > ff.away ? 'WON' : 'LOST';
+    results['away_win'] = ff.away > ff.home ? 'WON' : 'LOST';
+    results['draw'] = ff.home === ff.away ? 'WON' : 'LOST';
 
-    switch (market) {
-        case 'home_win': return didHomeWin ? 'WON' : 'LOST';
-        case 'away_win': return didAwayWin ? 'WON' : 'LOST';
-        case 'draw': return wasDraw ? 'WON' : 'LOST';
-        case 'btts': return (ff.home > 0 && ff.away > 0) ? 'WON' : 'LOST';
-        case 'btts_no': return (ff.home > 0 && ff.away > 0) ? 'LOST' : 'WON';
-        // Ajoutez d'autres cas pour les marchés 'over'/'under' si nécessaire
-        default:
-            if (market.includes('match_over_')) {
-                const value = parseFloat(market.replace('match_over_', ''));
-                return (ff.home + ff.away) > value ? 'WON' : 'LOST';
-            }
-            if (market.includes('match_under_')) {
-                const value = parseFloat(market.replace('match_under_', ''));
-                return (ff.home + ff.away) < value ? 'WON' : 'LOST';
-            }
-            return 'UNKNOWN';
+    const sh = { home: ff.home - fh.home, away: ff.away - fh.away };
+    results['btts'] = ff.home > 0 && ff.away > 0 ? 'WON' : 'LOST';
+    results['btts_no'] = !(ff.home > 0 && ff.away > 0) ? 'WON' : 'LOST';
+
+    [0.5, 1.5, 2.5, 3.5].forEach(t => {
+        results[`match_over_${t}`] = (ff.home + ff.away > t) ? 'WON' : 'LOST';
+        results[`match_under_${t}`] = (ff.home + ff.away < t) ? 'WON' : 'LOST';
+        results[`ht_over_${t}`] = (fh.home + fh.away > t) ? 'WON' : 'LOST';
+        results[`ht_under_${t}`] = (fh.home + fh.away < t) ? 'WON' : 'LOST';
+        results[`st_over_${t}`] = (sh.home + sh.away > t) ? 'WON' : 'LOST';
+        results[`st_under_${t}`] = (sh.home + sh.away < t) ? 'WON' : 'LOST';
+    });
+    return results;
+}
+
+function generateHtmlReport(reports) {
+    const css = `
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
+        h1, h2 { color: #bb86fc; border-bottom: 2px solid #373737; padding-bottom: 10px; }
+        .report-container { background-color: #1e1e1e; border: 1px solid #373737; border-radius: 8px; margin-bottom: 30px; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #373737; }
+        th { background-color: #2a2a2a; }
+        .status-won { color: #03dac6; font-weight: bold; }
+        .status-lost { color: #cf6679; font-weight: bold; }
+        .summary { display: flex; gap: 30px; font-size: 1.1em; margin-bottom: 15px; }
+    `;
+    let body = `<h1>Rapport de Vérification des Résultats</h1>`;
+
+    if (Object.keys(reports).length === 0) {
+        body += `<p>Aucun rapport de prédiction à afficher.</p>`;
     }
+
+    for (const executionId in reports) {
+        const report = reports[executionId];
+        const summary = report.summary;
+        body += `
+            <div class="report-container">
+                <h2>Rapport pour l'exécution : ${executionId}</h2>
+                <div class="summary">
+                    <span>Total: ${summary.total}</span>
+                    <span class="status-won">Gagnés: ${summary.won}</span>
+                    <span class="status-lost">Perdus: ${summary.lost}</span>
+                    <span>En attente: ${summary.pending}</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Match</th>
+                            <th>Marché</th>
+                            <th>Confiance</th>
+                            <th>Score Final</th>
+                            <th>Résultat</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        
+        for (const fixtureId in report.results) {
+            const res = report.results[fixtureId];
+            body += `
+                <tr>
+                    <td>${res.matchLabel}</td>
+                    <td>${res.market}</td>
+                    <td>${res.score.toFixed(2)}%</td>
+                    <td>${res.finalScore.home} - ${res.finalScore.away}</td>
+                    <td class="status-${res.result.toLowerCase()}">${res.result}</td>
+                </tr>
+            `;
+        }
+
+        body += `</tbody></table></div>`;
+    }
+
+    return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Rapport de Vérification</title><style>${css}</style></head><body>${body}</body></html>`;
 }
 
 functions.http('resultsChecker', async (req, res) => {
     console.log(chalk.blue.bold("--- Démarrage du Job de Vérification des Résultats ---"));
 
-    // 1. Récupérer toutes les prédictions qui ne sont pas encore dans un rapport final
     const pendingPredictions = await firestoreService.getPredictionsWithoutFinalResult();
     if (!pendingPredictions.length) {
-        console.log(chalk.green("Aucune prédiction en attente de résultat. Terminé."));
-        res.status(200).send("No pending predictions.");
+        const html = generateHtmlReport({});
+        res.status(200).send(html);
         return;
     }
 
-    // 2. Grouper les prédictions par 'backtestExecutionId'
     const predictionsByRun = pendingPredictions.reduce((acc, pred) => {
         const execId = pred.backtestExecutionId;
         if (execId) {
@@ -53,20 +108,19 @@ functions.http('resultsChecker', async (req, res) => {
         return acc;
     }, {});
 
-    // 3. Traiter chaque lot de prédictions
+    const processedReports = {};
+
     for (const executionId in predictionsByRun) {
         console.log(chalk.cyan(`\nTraitement du lot d'exécution : ${executionId}`));
         const predictionsForRun = predictionsByRun[executionId];
         const fixtureIds = [...new Set(predictionsForRun.map(p => p.fixtureId))];
 
-        // 4. Récupérer les résultats des matchs depuis l'API
         const fixtures = await apiFootballService.getFixturesByIds(fixtureIds);
         if (!fixtures || fixtures.length === 0) {
             console.log(chalk.yellow(`   -> Impossible de récupérer les détails des matchs pour le lot ${executionId}.`));
             continue;
         }
 
-        // 5. Charger ou créer le rapport de prédiction
         let report = await firestoreService.getPredictionReport(executionId);
         if (!report) {
             report = {
@@ -74,20 +128,19 @@ functions.http('resultsChecker', async (req, res) => {
                 createdAt: new Date(),
                 status: 'PROCESSING',
                 summary: { total: predictionsForRun.length, won: 0, lost: 0, pending: predictionsForRun.length },
-                results: {} // Clé: fixtureId
+                results: {}
             };
         }
 
         let reportUpdated = false;
-        // 6. Mettre à jour le rapport avec les nouveaux résultats
         for (const prediction of predictionsForRun) {
             const fixtureIdStr = String(prediction.fixtureId);
             const fixture = fixtures.find(f => f.fixture.id === prediction.fixtureId);
 
-            // Si le résultat n'est pas déjà dans le rapport et que le match est terminé
             if (!report.results[fixtureIdStr] && fixture && fixture.fixture.status.short === 'FT') {
                 reportUpdated = true;
-                const result = determineMarketResult(fixture, prediction.market);
+                const allMarketResults = determineResultsFromFixture(fixture);
+                const result = allMarketResults[prediction.market] || 'UNKNOWN';
                 
                 report.results[fixtureIdStr] = {
                     market: prediction.market,
@@ -105,7 +158,6 @@ functions.http('resultsChecker', async (req, res) => {
             }
         }
 
-        // 7. Sauvegarder le rapport mis à jour
         if (reportUpdated) {
             if (report.summary.pending === 0) {
                 report.status = 'COMPLETED';
@@ -113,13 +165,11 @@ functions.http('resultsChecker', async (req, res) => {
             }
             report.lastUpdatedAt = new Date();
             await firestoreService.savePredictionReport(executionId, report);
-        } else {
-            console.log(chalk.gray(`   -> Aucun nouveau résultat pour le lot ${executionId}.`));
         }
+        processedReports[executionId] = report;
     }
     
-    // NOTE : La logique pour les rapports de tickets suivrait un schéma très similaire et peut être ajoutée ici.
-    
     console.log(chalk.blue.bold("\n--- Job de Vérification des Résultats Terminé ---"));
-    res.status(200).send("Results checker finished successfully.");
+    const finalHtml = generateHtmlReport(processedReports);
+    res.status(200).send(finalHtml);
 });
