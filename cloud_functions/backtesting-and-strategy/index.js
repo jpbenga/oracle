@@ -26,7 +26,6 @@ function determineAllMarketResults(fixture, projectedHomeGoals, projectedAwayGoa
     const results = {};
     const ff = fixture.goals;
     const fh = fixture.score.halftime;
-
     if (ff.home === null || ff.away === null || fh.home === null || fh.away === null) return {};
 
     const didHomeWin = ff.home > ff.away;
@@ -69,87 +68,81 @@ function determineAllMarketResults(fixture, projectedHomeGoals, projectedAwayGoa
     return results;
 }
 
-function generateBacktestingHtml(summary, whitelist) {
+function generateBacktestingHtml(report) {
+    const { totalMatchesAnalyzed, perMarketSummary, whitelist, marketOccurrences, calibration, earlySeasonSummary } = report;
     const css = `
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; color: #333; margin: 0; padding: 20px; }
-        h1, h2 { color: #1d2129; border-bottom: 2px solid #e9ebee; padding-bottom: 10px; }
-        h1 { font-size: 2em; }
-        h2 { font-size: 1.5em; margin-top: 40px;}
-        table { width: 100%; border-collapse: collapse; margin-bottom: 30px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); background: #fff; }
-        th, td { padding: 12px 15px; text-align: left; border: 1px solid #e9ebee; }
-        thead { background-color: #333; color: #fff; }
-        tbody tr:nth-child(even) { background-color: #f6f7f9; }
-        tbody tr:hover { background-color: #e9ebee; }
-        .container { max-width: 1400px; margin: auto; background: #fff; padding: 20px 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .rate { font-weight: bold; }
-        .rate-high { color: #28a745; }
-        .rate-medium { color: #f0ad4e; }
-        .rate-low { color: #d9534f; }
-        .no-data { text-align: center; padding: 20px; font-style: italic; color: #888; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
+        h1, h2, h3 { color: #bb86fc; border-bottom: 2px solid #373737; padding-bottom: 10px; }
+        h1 { font-size: 2.2em; text-align: center; }
+        h2 { font-size: 1.8em; margin-top: 40px; }
+        h3 { font-size: 1.4em; margin-top: 30px; border-bottom: 1px solid #373737; }
+        .status { background-color: #1e1e1e; border: 1px solid #373737; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; font-size: 1.2em; }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .card { background-color: #1e1e1e; border: 1px solid #373737; border-radius: 8px; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #373737; }
+        th { background-color: #2a2a2a; }
+        .score { font-weight: bold; }
+        .rate-high { background-color: #03dac630; }
+        .rate-medium { background-color: #f0e68c30; }
+        .rate-low { background-color: #cf667930; }
     `;
 
-    let summaryHtml = '<h2>Analyse par Marché et Tranche de Confiance</h2><table><thead><tr><th>Marché</th><th>Tranche</th><th>Taux de Réussite</th><th>Confiance Moyenne</th><th>Succès</th><th>Total</th></tr></thead><tbody>';
-    const sortedMarkets = Object.keys(summary).sort();
+    const trancheKeys = ['90-100', '80-89', '70-79', '60-69', '0-59'];
+    let html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Rapport de Backtest</title><style>${css}</style></head><body>`;
+    html += `<h1>Rapport de Backtest</h1><div class="status">${totalMatchesAnalyzed} matchs analysés</div>`;
 
-    for (const market of sortedMarkets) {
-        const sortedTranches = Object.keys(summary[market]).sort((a, b) => parseInt(b.split('-')[0]) - parseInt(a.split('-')[0]));
-
-        for (const tranche of sortedTranches) {
-            const data = summary[market][tranche];
-            const rate = data.total > 0 ? (data.success / data.total) * 100 : 0;
-            const avgPrediction = data.total > 0 ? data.predictionSum / data.total : 0;
-            let rateClass = 'rate-low';
-            if (rate >= 85) rateClass = 'rate-high';
-            else if (rate >= 70) rateClass = 'rate-medium';
-            
-            summaryHtml += `
-                <tr>
-                    <td>${market}</td>
-                    <td><b>${tranche}%</b></td>
-                    <td class="rate ${rateClass}">${rate.toFixed(2)}%</td>
-                    <td>${avgPrediction.toFixed(2)}%</td>
-                    <td>${data.success}</td>
-                    <td>${data.total}</td>
-                </tr>
-            `;
+    const globalSummary = initTrancheAnalysis();
+    for (const market in perMarketSummary) { 
+        for (const key of trancheKeys) { 
+            globalSummary[key].success += perMarketSummary[market][key].success; 
+            globalSummary[key].total += perMarketSummary[market][key].total; 
+        } 
+    } 
+    html += `<h2>Bilan Global (Tous Marchés)</h2><div class="card"><table><thead><tr><th>Tranche</th><th>Réussite</th><th>Total</th><th>Taux</th></tr></thead><tbody>`;
+    trancheKeys.forEach(key => {
+        const tranche = globalSummary[key];
+        if (tranche.total > 0) {
+            const rate = (tranche.success / tranche.total) * 100;
+            const rateClass = rate >= 75 ? 'rate-high' : rate >= 50 ? 'rate-medium' : 'rate-low';
+            html += `<tr class="${rateClass}"><td>${key}%</td><td>${tranche.success}</td><td>${tranche.total}</td><td class="score">${rate.toFixed(2)}%</td></tr>`;
         }
-    }
-    summaryHtml += '</tbody></table>';
+    });
+    html += `</tbody></table></div>`;
 
-    let whitelistHtml = '<h2>Whitelist Générée (&gt;85% de réussite)</h2>';
-    if (Object.keys(whitelist).length > 0) {
-        whitelistHtml += '<table><thead><tr><th>Marché</th><th>Tranches Validées</th></tr></thead><tbody>';
-        const sortedWhitelistMarkets = Object.keys(whitelist).sort();
-        for (const market of sortedWhitelistMarkets) {
-            whitelistHtml += `
-                <tr>
-                    <td>${market}</td>
-                    <td><b>${whitelist[market].join(', ')}</b></td>
-                </tr>
-            `;
-        }
-        whitelistHtml += '</tbody></table>';
-    } else {
-        whitelistHtml += '<div class="no-data"><p>Aucun marché n\'a atteint le seuil de 85% pour être ajouté à la whitelist.</p></div>';
-    }
+    html += `<h2>Bilan par Marché</h2><div class="grid-container">`;
+    Object.keys(perMarketSummary).sort().forEach(market => {
+        html += `<div class="card"><h3>${market}</h3><table><thead><tr><th>Tranche</th><th>Réussite</th><th>Total</th><th>Taux</th><th>Conf. Moy.</th></tr></thead><tbody>`;
+        trancheKeys.forEach(key => {
+            const tranche = perMarketSummary[market][key];
+            const rate = tranche.total > 0 ? (tranche.success / tranche.total) * 100 : 0;
+            const avgPred = tranche.total > 0 ? (tranche.predictionSum / tranche.total) : 0;
+            const rateClass = rate >= 85 ? 'rate-high' : rate >= 70 ? 'rate-medium' : 'rate-low';
+            html += `<tr class="${rateClass}"><td>${key}%</td><td>${tranche.success}</td><td>${tranche.total}</td><td class="score">${rate.toFixed(2)}%</td><td>${avgPred.toFixed(2)}%</td></tr>`;
+        });
+        html += `</tbody></table></div>`;
+    });
+    html += `</div>`;
 
-    return `
-        <!DOCTYPE html>
-        <html lang="fr">
-        <head>
-            <meta charset="UTF-8">
-            <title>Rapport de Backtesting</title>
-            <style>${css}</style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>Rapport de Backtesting</h1>
-                ${summaryHtml}
-                ${whitelistHtml}
-            </div>
-        </body>
-        </html>
-    `;
+    html += `<h2>Whitelist Générée (>85%)</h2><div class="card"><table><thead><tr><th>Marché</th><th>Tranches Validées</th></tr></thead><tbody>`;
+    Object.keys(whitelist).sort().forEach(market => {
+        html += `<tr><td>${market}</td><td class="score">${whitelist[market].join(', ')}</td></tr>`;
+    });
+    html += `</tbody></table></div>`;
+
+    html += `<h2>Calibration du Modèle</h2><div class="card"><table><thead><tr><th>Marché</th><th>Tranche</th><th>Prédit</th><th>Réel</th></tr></thead><tbody>`;
+    Object.keys(calibration).sort().forEach(market => {
+        trancheKeys.forEach(key => {
+            if (calibration[market][key]) {
+                const { predicted, actual } = calibration[market][key];
+                html += `<tr><td>${market}</td><td>${key}%</td><td>${predicted}%</td><td>${actual}%</td></tr>`;
+            }
+        });
+    });
+    html += `</tbody></table></div>`;
+
+    html += `</body></html>`;
+    return html;
 }
 
 
@@ -158,91 +151,96 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
 
     const isDbConnected = await firestoreService.testConnection();
     if (!isDbConnected) {
-        console.error(chalk.red.bold("Arrêt du job : la connexion à Firestore a échoué."));
         res.status(500).send("CRITICAL: Firestore connection failed.");
         return;
     }
 
+    let totalMatchesAnalyzed = 0;
+    const marketOccurrences = {};
+    const perMarketSummary = {};
+    const earlySeasonTrancheSummary = initTrancheAnalysis();
     const allBacktestResults = [];
     const season = new Date().getFullYear();
 
     for (const league of footballConfig.leaguesToAnalyze) {
-        console.log(chalk.cyan(`\n[Backtest] Analyse de la ligue : ${league.name}`));
+        console.log(chalk.cyan(`
+[Backtest] Analyse de la ligue : ${league.name}`));
         const finishedMatches = await gestionJourneeService.getMatchesForBacktesting(league.id, season);
 
         if (finishedMatches && finishedMatches.length > 0) {
             for (const match of finishedMatches) {
+                totalMatchesAnalyzed++;
                 console.log(chalk.green(`   -> Analyse du match : ${match.teams.home.name} vs ${match.teams.away.name}`));
                 const analysis = await analyseMatchService.analyseMatch(match);
+
                 if (analysis && analysis.markets) {
                     const allMarketResults = determineAllMarketResults(match, analysis.projectedHomeGoals, analysis.projectedAwayGoals);
+                    for (const market in allMarketResults) { if (allMarketResults[market] === 'WON') { marketOccurrences[market] = (marketOccurrences[market] || 0) + 1; } }
+
                     const matchResults = [];
                     for (const market in analysis.markets) {
-                        const predictionScore = analysis.markets[market];
                         const result = allMarketResults[market];
                         if(result) {
-                            matchResults.push({
-                                market: market,
-                                prediction: predictionScore,
-                                result: result
-                            });
+                            matchResults.push({ market: market, prediction: analysis.markets[market], result: result });
                         }
                     }
-                    allBacktestResults.push({
-                        matchId: match.fixture.id,
-                        markets: matchResults
-                    });
+                    allBacktestResults.push({ matchId: match.fixture.id, markets: matchResults, isEarlySeason: (match.league.round.match(/(\d+)/)?.[0] || 10) < 6 });
                 }
             }
         }
     }
     
     if (allBacktestResults.length === 0) {
-        const html = generateBacktestingHtml({}, {});
-        res.status(200).send(html);
+        res.status(200).send(generateBacktestingHtml({ perMarketSummary: {}, whitelist: {}, marketOccurrences: {}, calibration: {}, earlySeasonSummary: initTrancheAnalysis(), totalMatchesAnalyzed: 0 }));
         return;
     }
 
-    const perMarketSummary = {};
     for (const result of allBacktestResults) {
-        if (result && Array.isArray(result.markets)) {
-            for (const marketData of result.markets) {
-                const { market, prediction, result: winStatus } = marketData;
-                if (!market || typeof prediction !== 'number' || !winStatus) continue;
+        for (const marketData of result.markets) {
+            const { market, prediction, result: winStatus } = marketData;
+            if (!market || typeof prediction !== 'number' || !winStatus) continue;
 
-                if (!perMarketSummary[market]) {
-                    perMarketSummary[market] = initTrancheAnalysis();
-                }
+            if (!perMarketSummary[market]) perMarketSummary[market] = initTrancheAnalysis();
 
-                const trancheKey = getTrancheKey(prediction);
-                if (trancheKey) {
-                    const tranche = perMarketSummary[market][trancheKey];
-                    if (tranche) {
-                        tranche.total++;
-                        tranche.predictionSum += prediction;
-                        if (winStatus === 'WON') {
-                            tranche.success++;
-                        }
-                    }
+            const trancheKey = getTrancheKey(prediction);
+            if (trancheKey) {
+                const tranche = perMarketSummary[market][trancheKey];
+                tranche.total++;
+                tranche.predictionSum += prediction;
+                if (winStatus === 'WON') tranche.success++;
+
+                if (result.isEarlySeason) {
+                    const earlyTranche = earlySeasonTrancheSummary[trancheKey];
+                    earlyTranche.total++;
+                    earlyTranche.predictionSum += prediction;
+                    if (winStatus === 'WON') earlyTranche.success++;
                 }
             }
         }
     }
 
-    console.log(chalk.cyan("Génération de la whitelist (taux > 85%)..."));
+    const calibrationReport = {};
+    for (const market in perMarketSummary) {
+        calibrationReport[market] = {};
+        for (const key in perMarketSummary[market]) {
+            const tranche = perMarketSummary[market][key];
+            if (tranche.total > 0) {
+                calibrationReport[market][key] = {
+                    predicted: (tranche.predictionSum / tranche.total).toFixed(2),
+                    actual: ((tranche.success / tranche.total) * 100).toFixed(2)
+                };
+            }
+        }
+    }
+
     const WHITELIST_SUCCESS_RATE = 0.85;
     const whitelist = {};
     for (const market in perMarketSummary) {
         for (const key in perMarketSummary[market]) {
             const tranche = perMarketSummary[market][key];
-            if (tranche.total > 0) { 
-                const successRate = tranche.success / tranche.total;
-                if (successRate > WHITELIST_SUCCESS_RATE) {
-                    if (!whitelist[market]) {
-                        whitelist[market] = [];
-                    }
-                    whitelist[market].push(key);
-                }
+            if (tranche.total > 0 && (tranche.success / tranche.total) > WHITELIST_SUCCESS_RATE) {
+                if (!whitelist[market]) whitelist[market] = [];
+                whitelist[market].push(key);
             }
         }
     }
@@ -250,6 +248,6 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
     await firestoreService.saveWhitelist(whitelist);
     console.log(chalk.magenta.bold(`-> Whitelist sauvegardée avec ${Object.keys(whitelist).length} marchés.`));
     
-    const htmlResponse = generateBacktestingHtml(perMarketSummary, whitelist);
-    res.status(200).send(htmlResponse);
+    const finalReport = { totalMatchesAnalyzed, perMarketSummary, whitelist, marketOccurrences, calibration: calibrationReport, earlySeasonSummary };
+    res.status(200).send(generateBacktestingHtml(finalReport));
 });
