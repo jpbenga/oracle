@@ -4,7 +4,14 @@ const { firestoreService } = require('./common/services/Firestore.service');
 const { footballConfig } = require('./common/config/football.config');
 const { gestionJourneeService } = require('./common/services/GestionJournee.service');
 const { analyseMatchService } = require('./common/services/AnalyseMatch.service');
-const axios = require('axios');
+
+const initTrancheAnalysis = () => ({
+    '0-59': { success: 0, total: 0, predictionSum: 0 },
+    '60-69': { success: 0, total: 0, predictionSum: 0 },
+    '70-79': { success: 0, total: 0, predictionSum: 0 },
+    '80-89': { success: 0, total: 0, predictionSum: 0 },
+    '90-100': { success: 0, total: 0, predictionSum: 0 },
+});
 
 function getTrancheKey(score) {
     if (score >= 90) return "90-100";
@@ -15,34 +22,51 @@ function getTrancheKey(score) {
     return null;
 }
 
-const initTrancheAnalysis = () => ({
-    '0-59': { success: 0, total: 0 },
-    '60-69': { success: 0, total: 0 },
-    '70-79': { success: 0, total: 0 },
-    '80-89': { success: 0, total: 0 },
-    '90-100': { success: 0, total: 0 },
-});
+function determineAllMarketResults(fixture, projectedHomeGoals, projectedAwayGoals) {
+    const results = {};
+    const ff = fixture.goals;
+    const fh = fixture.score.halftime;
 
-function determineMarketResult(match, market) {
-    const { goals, score } = match;
-    const homeGoals = goals.home;
-    const awayGoals = goals.away;
-    const totalGoals = homeGoals + awayGoals;
+    if (ff.home === null || ff.away === null || fh.home === null || fh.away === null) return {};
 
-    if (market.startsWith('match_over_')) {
-        const value = parseFloat(market.split('_')[2]);
-        return totalGoals > value ? 'WON' : 'LOST';
-    }
+    const didHomeWin = ff.home > ff.away;
+    const didAwayWin = ff.away > ff.home;
+    const wasDraw = ff.home === ff.away;
+    const isHomeFavoriteModel = projectedHomeGoals > projectedAwayGoals;
+
+    results['draw'] = wasDraw ? 'WON' : 'LOST';
+    results['home_win'] = didHomeWin ? 'WON' : 'LOST';
+    results['away_win'] = didAwayWin ? 'WON' : 'LOST';
+    results['favorite_win'] = ((isHomeFavoriteModel && didHomeWin) || (!isHomeFavoriteModel && didAwayWin)) ? 'WON' : 'LOST';
+    results['outsider_win'] = ((isHomeFavoriteModel && didAwayWin) || (!isHomeFavoriteModel && didHomeWin)) ? 'WON' : 'LOST';
+    results['double_chance_favorite'] = (results['favorite_win'] === 'WON' || wasDraw) ? 'WON' : 'LOST';
+    results['double_chance_outsider'] = (results['outsider_win'] === 'WON' || wasDraw) ? 'WON' : 'LOST';
     
-    switch (market) {
-        case 'favorite_win':
-            const homeOdd = score.fulltime.home < score.fulltime.away;
-            return (homeOdd && homeGoals > awayGoals) || (!homeOdd && awayGoals > homeGoals) ? 'WON' : 'LOST';
-        case 'btts':
-            return homeGoals > 0 && awayGoals > 0 ? 'WON' : 'LOST';
-        default:
-            return 'PENDING';
-    }
+    const sh = { home: ff.home - fh.home, away: ff.away - fh.away };
+    results['btts'] = ff.home > 0 && ff.away > 0 ? 'WON' : 'LOST';
+    results['btts_no'] = !(ff.home > 0 && ff.away > 0) ? 'WON' : 'LOST';
+
+    [0.5, 1.5, 2.5, 3.5].forEach(t => {
+        results[`match_over_${t}`] = (ff.home + ff.away > t) ? 'WON' : 'LOST';
+        results[`match_under_${t}`] = (ff.home + ff.away < t) ? 'WON' : 'LOST';
+        results[`ht_over_${t}`] = (fh.home + fh.away > t) ? 'WON' : 'LOST';
+        results[`ht_under_${t}`] = (fh.home + fh.away < t) ? 'WON' : 'LOST';
+        results[`st_over_${t}`] = (sh.home + sh.away > t) ? 'WON' : 'LOST';
+        results[`st_under_${t}`] = (sh.home + sh.away < t) ? 'WON' : 'LOST';
+        results[`home_over_${t}`] = (ff.home > t) ? 'WON' : 'LOST';
+        results[`home_under_${t}`] = (ff.home < t) ? 'WON' : 'LOST';
+        results[`away_over_${t}`] = (ff.away > t) ? 'WON' : 'LOST';
+        results[`away_under_${t}`] = (ff.away < t) ? 'WON' : 'LOST';
+        results[`home_ht_over_${t}`] = (fh.home > t) ? 'WON' : 'LOST';
+        results[`home_ht_under_${t}`] = (fh.home < t) ? 'WON' : 'LOST';
+        results[`away_ht_over_${t}`] = (fh.away > t) ? 'WON' : 'LOST';
+        results[`away_ht_under_${t}`] = (fh.away < t) ? 'WON' : 'LOST';
+        results[`home_st_over_${t}`] = (sh.home > t) ? 'WON' : 'LOST';
+        results[`home_st_under_${t}`] = (sh.home < t) ? 'WON' : 'LOST';
+        results[`away_st_over_${t}`] = (sh.away > t) ? 'WON' : 'LOST';
+        results[`away_st_under_${t}`] = (sh.away < t) ? 'WON' : 'LOST';
+    });
+    return results;
 }
 
 function generateBacktestingHtml(summary, whitelist) {
@@ -61,24 +85,19 @@ function generateBacktestingHtml(summary, whitelist) {
         .rate-high { color: #28a745; }
         .rate-medium { color: #f0ad4e; }
         .rate-low { color: #d9534f; }
-        .whitelist-box { background-color: #e9f7ef; border-left: 5px solid #28a745; padding: 15px; margin-top: 20px; border-radius: 5px; }
         .no-data { text-align: center; padding: 20px; font-style: italic; color: #888; }
     `;
 
-    let summaryHtml = '<h2>Analyse par Marché et Tranche de Confiance</h2><table><thead><tr><th>Marché</th><th>Tranche</th><th>Taux de Réussite</th><th>Succès</th><th>Total</th></tr></thead><tbody>';
+    let summaryHtml = '<h2>Analyse par Marché et Tranche de Confiance</h2><table><thead><tr><th>Marché</th><th>Tranche</th><th>Taux de Réussite</th><th>Confiance Moyenne</th><th>Succès</th><th>Total</th></tr></thead><tbody>';
     const sortedMarkets = Object.keys(summary).sort();
 
     for (const market of sortedMarkets) {
-        const sortedTranches = Object.keys(summary[market]).sort((a, b) => {
-            const aVal = parseInt(a.split('-')[0]);
-            const bVal = parseInt(b.split('-')[0]);
-            return bVal - aVal;
-        });
+        const sortedTranches = Object.keys(summary[market]).sort((a, b) => parseInt(b.split('-')[0]) - parseInt(a.split('-')[0]));
 
         for (const tranche of sortedTranches) {
             const data = summary[market][tranche];
-            if (data.total === 0) continue;
-            const rate = (data.success / data.total) * 100;
+            const rate = data.total > 0 ? (data.success / data.total) * 100 : 0;
+            const avgPrediction = data.total > 0 ? data.predictionSum / data.total : 0;
             let rateClass = 'rate-low';
             if (rate >= 85) rateClass = 'rate-high';
             else if (rate >= 70) rateClass = 'rate-medium';
@@ -88,6 +107,7 @@ function generateBacktestingHtml(summary, whitelist) {
                     <td>${market}</td>
                     <td><b>${tranche}%</b></td>
                     <td class="rate ${rateClass}">${rate.toFixed(2)}%</td>
+                    <td>${avgPrediction.toFixed(2)}%</td>
                     <td>${data.success}</td>
                     <td>${data.total}</td>
                 </tr>
@@ -147,8 +167,7 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
     const season = new Date().getFullYear();
 
     for (const league of footballConfig.leaguesToAnalyze) {
-        console.log(chalk.cyan(`
-[Backtest] Analyse de la ligue : ${league.name}`));
+        console.log(chalk.cyan(`\n[Backtest] Analyse de la ligue : ${league.name}`));
         const finishedMatches = await gestionJourneeService.getMatchesForBacktesting(league.id, season);
 
         if (finishedMatches && finishedMatches.length > 0) {
@@ -156,11 +175,12 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
                 console.log(chalk.green(`   -> Analyse du match : ${match.teams.home.name} vs ${match.teams.away.name}`));
                 const analysis = await analyseMatchService.analyseMatch(match);
                 if (analysis && analysis.markets) {
+                    const allMarketResults = determineAllMarketResults(match, analysis.projectedHomeGoals, analysis.projectedAwayGoals);
                     const matchResults = [];
                     for (const market in analysis.markets) {
                         const predictionScore = analysis.markets[market];
-                        const result = determineMarketResult(match, market);
-                        if(result !== 'PENDING') {
+                        const result = allMarketResults[market];
+                        if(result) {
                             matchResults.push({
                                 market: market,
                                 prediction: predictionScore,
@@ -199,6 +219,7 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
                     const tranche = perMarketSummary[market][trancheKey];
                     if (tranche) {
                         tranche.total++;
+                        tranche.predictionSum += prediction;
                         if (winStatus === 'WON') {
                             tranche.success++;
                         }
@@ -231,19 +252,4 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
     
     const htmlResponse = generateBacktestingHtml(perMarketSummary, whitelist);
     res.status(200).send(htmlResponse);
-
-    // try {
-    //     console.log(chalk.green("Déclenchement de la fonction de prédiction..."));
-    //     const predictionFunctionUrl = process.env.PREDICTION_FUNCTION_URL;
-    //     if (predictionFunctionUrl && predictionFunctionUrl !== 'placeholder') {
-    //         await axios.get(predictionFunctionUrl, { timeout: 300000 });
-    //         res.status(200).send("Backtesting terminé, prédiction déclenchée.");
-    //     } else {
-    //         console.log(chalk.yellow("URL de la fonction de prédiction non configurée. Arrêt de la chaîne."));
-    //         res.status(200).send("Backtesting terminé, URL de prédiction non configurée.");
-    //     }
-    // } catch (error) {
-    //     console.error(chalk.red("Erreur lors du déclenchement de la fonction de prédiction : "), error.message);
-    //     res.status(500).send("Erreur lors du déclenchement de la fonction suivante.");
-    // }
 });
