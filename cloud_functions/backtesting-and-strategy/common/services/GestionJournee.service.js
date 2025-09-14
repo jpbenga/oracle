@@ -22,7 +22,7 @@ class GestionJourneeService {
             return null;
         }
         
-        const prefix = roundParts[1];
+        const prefix = roundParts[1].trim().replace(/-$/, '').trim();
         const previousRoundNumber = parseInt(roundParts[2], 10) - 1;
         const previousRoundName = `${prefix} - ${previousRoundNumber}`;
         
