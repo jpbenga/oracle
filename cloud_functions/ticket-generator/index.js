@@ -163,6 +163,9 @@ functions.http('runTicketGenerator', async (req, res) => {
     const todayPredictions = await firestoreService.getEligiblePredictionsForDate(todayStr);
     const tomorrowPredictions = await firestoreService.getEligiblePredictionsForDate(tomorrowStr);
 
+    console.log(chalk.yellow('--- Prédictions pour aujourd\'hui (brutes) ---'));
+    console.log(JSON.stringify(todayPredictions, null, 2));
+
     const eligibleToday = todayPredictions.filter(p => p.odd && p.historicalRate);
     const eligibleTomorrow = tomorrowPredictions.filter(p => p.odd && p.historicalRate);
 
