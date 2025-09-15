@@ -198,7 +198,7 @@ class FirestoreService {
     const snapshot = await this.db.collection('predictions')
         .where('backtestExecutionId', '==', executionId)
         .get();
-    return snapshot.docs.map(doc => doc.data());
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   }
 }
 

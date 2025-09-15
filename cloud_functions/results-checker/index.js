@@ -136,8 +136,6 @@ functions.http('resultsChecker', async (req, res) => {
     let report = await firestoreService.getPredictionReport(executionId);
     
     const predictionsForRun = await firestoreService.getPredictionsForRun(executionId);
-    
-    // NOUVEAU LOG
     console.log(chalk.white.bold(`   -> ${predictionsForRun.length} prédiction(s) trouvée(s) pour ce cycle.`));
 
     if (!predictionsForRun.length) {
@@ -148,10 +146,8 @@ functions.http('resultsChecker', async (req, res) => {
     }
     
     if (report) {
-        // NOUVEAU LOG
         console.log(chalk.green(`   -> Document 'prediction_report' existant trouvé.`));
     } else {
-        // NOUVEAU LOG
         console.log(chalk.yellow(`   -> Aucun 'prediction_report' trouvé. Création d'un nouveau rapport.`));
         report = {
             executionId: executionId,
@@ -169,58 +165,57 @@ functions.http('resultsChecker', async (req, res) => {
         return;
     }
 
-    const fixtureIdsInPredictions = [...new Set(predictionsForRun.map(p => p.fixtureId))];
-    const fixturesToQuery = fixtureIdsInPredictions.filter(id => !report.results[String(id)]);
-
-    if (fixturesToQuery.length === 0) {
-        console.log(chalk.gray(`Tous les résultats pour les matchs de ce cycle sont déjà dans le rapport.`));
+    const predictionsToProcess = predictionsForRun.filter(p => !report.results[p.id]);
+    if (predictionsToProcess.length === 0) {
+        console.log(chalk.gray(`Toutes les prédictions pour ce cycle ont déjà un résultat dans le rapport.`));
         const finalHtml = generateHtmlReport({ [executionId]: report });
         res.status(200).send(finalHtml);
         return;
     }
 
-    console.log(chalk.cyan(`   -> Récupération des résultats pour ${fixturesToQuery.length} match(s) manquant(s)...`));
+    const fixtureIdsToQuery = [...new Set(predictionsToProcess.map(p => p.fixtureId))];
+    console.log(chalk.cyan(`   -> Récupération des résultats pour ${fixtureIdsToQuery.length} match(s) unique(s)...`));
+    
     const fixturesData = [];
-    for (const id of fixturesToQuery) {
+    for (const id of fixtureIdsToQuery) {
         const fixture = await apiFootballService.getMatchById(id);
         if (fixture) fixturesData.push(fixture);
     }
 
-    if (fixturesData.length === 0) {
-        console.log(chalk.yellow(`   -> Impossible de récupérer les détails des nouveaux matchs pour le cycle ${executionId}.`));
-        const finalHtml = generateHtmlReport({ [executionId]: report });
-        res.status(200).send(finalHtml);
-        return;
+    const fixtureResultsMap = {};
+    for (const fixture of fixturesData) {
+        if (fixture.fixture.status.short === 'FT') {
+            fixtureResultsMap[fixture.fixture.id] = determineResultsFromFixture(fixture);
+        }
     }
 
     let reportUpdated = false;
     for (const prediction of predictionsForRun) {
-        const fixtureIdStr = String(prediction.fixtureId);
-        
-        if (!report.results[fixtureIdStr]) {
+        if (report.results[prediction.id]) {
+            continue;
+        }
+
+        const allMarketResults = fixtureResultsMap[prediction.fixtureId];
+        if (allMarketResults) {
+            reportUpdated = true;
+            const result = allMarketResults[prediction.market] || 'UNKNOWN';
             const fixture = fixturesData.find(f => f.fixture.id === prediction.fixtureId);
 
-            if (fixture && fixture.fixture.status.short === 'FT') {
-                reportUpdated = true;
-                const allMarketResults = determineResultsFromFixture(fixture);
-                const result = allMarketResults[prediction.market] || 'UNKNOWN';
-                
-                report.results[fixtureIdStr] = {
-                    market: prediction.market,
-                    score: prediction.score,
-                    odd: prediction.odd,
-                    matchLabel: prediction.matchLabel,
-                    leagueName: prediction.leagueName,
-                    finalScore: { home: fixture.goals.home, away: fixture.goals.away },
-                    result: result
-                };
+            report.results[prediction.id] = {
+                market: prediction.market,
+                score: prediction.score,
+                odd: prediction.odd,
+                matchLabel: prediction.matchLabel,
+                leagueName: prediction.leagueName,
+                finalScore: { home: fixture.goals.home, away: fixture.goals.away },
+                result: result
+            };
 
-                if (result === 'WON') report.summary.won++;
-                if (result === 'LOST') report.summary.lost++;
-                report.summary.pending--;
-                
-                console.log(chalk.green(`   -> Résultat pour ${prediction.matchLabel} (${prediction.market}): ${result}`));
-            }
+            if (result === 'WON') report.summary.won++;
+            if (result === 'LOST') report.summary.lost++;
+            if (report.summary.pending > 0) report.summary.pending--;
+            
+            console.log(chalk.green(`   -> Résultat pour ${prediction.matchLabel} (${prediction.market}): ${result}`));
         }
     }
 
