@@ -103,6 +103,53 @@ function generateTicketsHtml(tickets) {
     `;
 }
 
+function generateTicketsForDay(predictions) {
+    const MIN_ODD = 1.88;
+    const MAX_ODD = 2.25;
+    let allPossibleTickets = [];
+
+    if (predictions.length === 0) {
+        return allPossibleTickets;
+    }
+
+    predictions.forEach(p => {
+        p.weightedScore = (p.score + p.historicalRate) / 2;
+    });
+
+    for (const pred of predictions) {
+        if (pred.odd >= MIN_ODD && pred.odd <= MAX_ODD) {
+            allPossibleTickets.push({
+                bets: [pred],
+                totalOdd: pred.odd,
+                totalExpectedValue: (pred.weightedScore / 100) * pred.odd
+            });
+        }
+    }
+
+    const MIN_ODD_FOR_COMBOS = 1.35;
+    const predictionsForCombos = predictions.filter(p => p.odd >= MIN_ODD_FOR_COMBOS);
+
+    if (predictionsForCombos.length > 1) {
+        const combosOfTwo = getCombinations(predictionsForCombos, 2);
+
+        for (const combo of combosOfTwo) {
+            if (combo[0].fixtureId === combo[1].fixtureId) continue;
+
+            const totalOdd = combo.reduce((acc, p) => acc * p.odd, 1);
+            if (totalOdd >= MIN_ODD && totalOdd <= MAX_ODD) {
+                const totalWeightedEV = combo.reduce((acc, p) => acc * ((p.weightedScore / 100) * p.odd), 0);
+                allPossibleTickets.push({
+                    bets: combo,
+                    totalOdd,
+                    totalExpectedValue: totalWeightedEV,
+                });
+            }
+        }
+    }
+
+    return allPossibleTickets;
+}
+
 functions.http('runTicketGenerator', async (req, res) => {
     console.log(chalk.blue.bold("---" + "Démarrage du Job de Génération de Tickets" + "---"));
 
@@ -116,56 +163,22 @@ functions.http('runTicketGenerator', async (req, res) => {
     const todayPredictions = await firestoreService.getEligiblePredictionsForDate(todayStr);
     const tomorrowPredictions = await firestoreService.getEligiblePredictionsForDate(tomorrowStr);
 
-    let allEligiblePredictions = [...todayPredictions, ...tomorrowPredictions].filter(p => p.odd && p.historicalRate);
+    const eligibleToday = todayPredictions.filter(p => p.odd && p.historicalRate);
+    const eligibleTomorrow = tomorrowPredictions.filter(p => p.odd && p.historicalRate);
 
-    if (allEligiblePredictions.length === 0) {
+    if (eligibleToday.length === 0 && eligibleTomorrow.length === 0) {
         console.log(chalk.yellow('Aucune prédiction éligible avec cote et score historique trouvée pour J et J+1.'));
         res.status(200).send(generateTicketsHtml([]));
         return;
     }
-    
-    allEligiblePredictions.forEach(p => {
-        p.weightedScore = (p.score + p.historicalRate) / 2;
-    });
 
-    console.log(chalk.cyan(`${allEligiblePredictions.length} pronostics éligibles trouvés pour J et J+1.`));
+    console.log(chalk.cyan(`${eligibleToday.length} pronostics éligibles trouvés pour J.`));
+    console.log(chalk.cyan(`${eligibleTomorrow.length} pronostics éligibles trouvés pour J+1.`));
 
-    const MIN_ODD = 1.88;
-    const MAX_ODD = 2.25;
-    let allPossibleTickets = [];
+    const todayPossibleTickets = generateTicketsForDay(eligibleToday);
+    const tomorrowPossibleTickets = generateTicketsForDay(eligibleTomorrow);
 
-    for (const pred of allEligiblePredictions) {
-        if (pred.odd >= MIN_ODD && pred.odd <= MAX_ODD) {
-            allPossibleTickets.push({
-                bets: [pred],
-                totalOdd: pred.odd,
-                totalExpectedValue: (pred.weightedScore / 100) * pred.odd
-            });
-        }
-    }
-
-    const MIN_ODD_FOR_COMBOS = 1.35;
-    const predictionsForCombos = allEligiblePredictions.filter(p => p.odd >= MIN_ODD_FOR_COMBOS);
-    console.log(chalk.cyan(`   -> ${predictionsForCombos.length} pronostics conservés pour les combinés (cote >= ${MIN_ODD_FOR_COMBOS})`));
-
-    if (predictionsForCombos.length > 1) {
-        const combosOfTwo = getCombinations(predictionsForCombos, 2);
-        console.log(chalk.cyan(`   -> Calcul sur ${combosOfTwo.length} combinaisons possibles...`));
-
-        for (const combo of combosOfTwo) {
-            if (combo[0].fixtureId === combo[1].fixtureId) continue;
-
-            const totalOdd = combo.reduce((acc, p) => acc * p.odd, 1);
-            if (totalOdd >= MIN_ODD && totalOdd <= MAX_ODD) {
-                const totalWeightedEV = combo.reduce((acc, p) => acc + ((p.weightedScore / 100) * p.odd), 0);
-                allPossibleTickets.push({
-                    bets: combo,
-                    totalOdd,
-                    totalExpectedValue: totalWeightedEV,
-                });
-            }
-        }
-    }
+    let allPossibleTickets = [...todayPossibleTickets, ...tomorrowPossibleTickets];
 
     if (allPossibleTickets.length === 0) {
         console.log(chalk.yellow("Aucun ticket n'a pu être généré avec les critères actuels."));
