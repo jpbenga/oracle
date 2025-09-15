@@ -200,6 +200,26 @@ class FirestoreService {
         .get();
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   }
+
+  async getReportResults(executionId) {
+    const snapshot = await this.db.collection('prediction_reports').doc(executionId).collection('results').get();
+    return snapshot.docs.map(doc => doc.data());
+  }
+
+  async saveResultsBatch(executionId, results) {
+    if (results.length === 0) return 0;
+    
+    const batch = this.db.batch();
+    const resultsCol = this.db.collection('prediction_reports').doc(executionId).collection('results');
+    
+    results.forEach(res => {
+        const docRef = resultsCol.doc(res.predictionId);
+        batch.set(docRef, res.data);
+    });
+    
+    await batch.commit();
+    return results.length;
+  }
 }
 
 exports.firestoreService = new FirestoreService();
