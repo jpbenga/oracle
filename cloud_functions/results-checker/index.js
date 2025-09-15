@@ -136,16 +136,23 @@ functions.http('resultsChecker', async (req, res) => {
     let report = await firestoreService.getPredictionReport(executionId);
     
     const predictionsForRun = await firestoreService.getPredictionsForRun(executionId);
+    
+    // NOUVEAU LOG
+    console.log(chalk.white.bold(`   -> ${predictionsForRun.length} prédiction(s) trouvée(s) pour ce cycle.`));
 
     if (!predictionsForRun.length) {
-        console.log(chalk.yellow(`Aucune prédiction trouvée pour le cycle ${executionId}.`));
+        console.log(chalk.yellow(`Aucune prédiction à vérifier pour le cycle ${executionId}.`));
         const html = generateHtmlReport({});
         res.status(200).send(html);
         return;
     }
     
-    if (!report) {
-        console.log(chalk.yellow(`Aucun rapport de prédiction trouvé pour ${executionId}. Création d'un nouveau rapport.`));
+    if (report) {
+        // NOUVEAU LOG
+        console.log(chalk.green(`   -> Document 'prediction_report' existant trouvé.`));
+    } else {
+        // NOUVEAU LOG
+        console.log(chalk.yellow(`   -> Aucun 'prediction_report' trouvé. Création d'un nouveau rapport.`));
         report = {
             executionId: executionId,
             createdAt: new Date(),
