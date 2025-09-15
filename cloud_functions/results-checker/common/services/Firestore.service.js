@@ -193,6 +193,13 @@ class FirestoreService {
     const docRef = this.db.collection('prediction_reports').doc(executionId);
     await docRef.set(reportData, { merge: true });
   }
+
+  async getPredictionsForRun(executionId) {
+    const snapshot = await this.db.collection('predictions')
+        .where('backtestExecutionId', '==', executionId)
+        .get();
+    return snapshot.docs.map(doc => doc.data());
+  }
 }
 
 exports.firestoreService = new FirestoreService();
