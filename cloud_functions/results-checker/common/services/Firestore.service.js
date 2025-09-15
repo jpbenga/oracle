@@ -209,15 +209,22 @@ class FirestoreService {
   async saveResultsBatch(executionId, results) {
     if (results.length === 0) return 0;
     
-    const batch = this.db.batch();
+    const CHUNK_SIZE = 500;
     const resultsCol = this.db.collection('prediction_reports').doc(executionId).collection('results');
     
-    results.forEach(res => {
-        const docRef = resultsCol.doc(res.predictionId);
-        batch.set(docRef, res.data);
-    });
+    for (let i = 0; i < results.length; i += CHUNK_SIZE) {
+        const chunk = results.slice(i, i + CHUNK_SIZE);
+        const batch = this.db.batch();
+        
+        chunk.forEach(res => {
+            const docRef = resultsCol.doc(res.predictionId);
+            batch.set(docRef, res.data);
+        });
+        
+        await batch.commit();
+        console.log(chalk.green(`   -> Lot de ${chunk.length} résultats sauvegardé.`));
+    }
     
-    await batch.commit();
     return results.length;
   }
 }
