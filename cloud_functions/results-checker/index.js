@@ -222,10 +222,8 @@ functions.http('resultsChecker', async (req, res) => {
         }
         report.lastUpdatedAt = new Date();
         
-        await firestoreService.savePredictionReport(executionId, { 
-            ...report, 
-            results: undefined 
-        });
+        const { results, ...reportToSave } = report;
+        await firestoreService.savePredictionReport(executionId, reportToSave);
 
     } else {
         console.log(chalk.yellow(`Aucun nouveau résultat de match terminé à traiter.`));
