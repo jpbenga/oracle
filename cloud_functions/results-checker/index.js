@@ -50,6 +50,7 @@ async function generateHtmlReport(reports) {
         th { background-color: #2a2a2a; }
         .status-WON { color: #03dac6; font-weight: bold; }
         .status-LOST { color: #cf6679; font-weight: bold; }
+        .status-PENDING { color: #f0e68c; }
         .status-UNKNOWN { color: #888; }
         .summary { display: flex; flex-wrap: wrap; gap: 20px; font-size: 1.1em; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #373737; }
     `;
@@ -136,26 +137,46 @@ functions.http('resultsChecker', async (req, res) => {
     const executionId = latestRun.executionId;
     console.log(chalk.cyan(`Ciblage du dernier cycle d'exécution : ${executionId}`));
 
-    let report = await firestoreService.getPredictionReport(executionId);
+    // --- DEBUT DE LA LOGIQUE DE VERROUILLAGE ---
+    const report = await firestoreService.getPredictionReport(executionId);
     
-    if (report && report.status === 'COMPLETED') {
-        console.log(chalk.green.bold(`Le rapport pour ${executionId} est déjà complet.`));
-        const finalHtml = await generateHtmlReport({ [executionId]: report });
-        res.status(200).send(finalHtml);
+    if (report && (report.status === 'PROCESSING' || report.status === 'COMPLETED')) {
+        const message = `Le rapport pour ${executionId} est déjà complet ou en cours de traitement (statut: ${report.status}). Arrêt de la fonction.`;
+        console.log(chalk.yellow.bold(message));
+        // Si le rapport est complet, on le renvoie, sinon juste un message.
+        if (report.status === 'COMPLETED') {
+            const finalHtml = await generateHtmlReport({ [executionId]: report });
+            res.status(200).send(finalHtml);
+        } else {
+            res.status(200).send(message);
+        }
         return;
     }
-    
+
+    // Verrouillage du rapport en le passant au statut PROCESSING
     const predictionsForRun = await firestoreService.getPredictionsForRun(executionId);
-    console.log(chalk.white.bold(`   -> ${predictionsForRun.length} prédiction(s) trouvée(s) pour ce cycle.`));
-    
+    let reportToProcess;
     if (!report) {
-        report = {
+        reportToProcess = {
             executionId: executionId,
             createdAt: new Date(),
             status: 'PROCESSING',
             summary: { total: predictionsForRun.length, won: 0, lost: 0, pending: predictionsForRun.length },
         };
+    } else {
+        reportToProcess = report;
+        reportToProcess.status = 'PROCESSING';
     }
+    await firestoreService.savePredictionReport(executionId, { 
+        status: reportToProcess.status,
+        lastUpdatedAt: new Date(),
+        createdAt: reportToProcess.createdAt || new Date(),
+        summary: reportToProcess.summary || { total: predictionsForRun.length, won: 0, lost: 0, pending: predictionsForRun.length },
+     });
+    console.log(chalk.magenta(`Verrouillage du rapport ${executionId} avec le statut PROCESSING.`));
+    // --- FIN DE LA LOGIQUE DE VERROUILLAGE ---
+
+    console.log(chalk.white.bold(`   -> ${predictionsForRun.length} prédiction(s) trouvée(s) pour ce cycle.`));
     
     const existingResults = await firestoreService.getReportResults(executionId);
     const existingResultIds = new Set(existingResults.map(r => r.predictionId));
@@ -164,7 +185,10 @@ functions.http('resultsChecker', async (req, res) => {
     
     if (predictionsToProcess.length === 0) {
         console.log(chalk.gray(`Toutes les prédictions pour ce cycle ont déjà un résultat.`));
-        const finalHtml = await generateHtmlReport({ [executionId]: report });
+        // On s'assure que le rapport final est bien marqué comme COMPLET
+        reportToProcess.status = 'COMPLETED';
+        await firestoreService.savePredictionReport(executionId, { status: 'COMPLETED' });
+        const finalHtml = await generateHtmlReport({ [executionId]: reportToProcess });
         res.status(200).send(finalHtml);
         return;
     }
@@ -186,6 +210,9 @@ functions.http('resultsChecker', async (req, res) => {
     });
 
     const newResultsToSave = [];
+    const processedPredictionIds = new Set();
+
+    // Traiter les matchs terminés
     for (const prediction of predictionsToProcess) {
         const allMarketResults = fixtureResultsMap[prediction.fixtureId];
         if (allMarketResults) {
@@ -205,31 +232,52 @@ functions.http('resultsChecker', async (req, res) => {
                     result: result
                 }
             });
+            processedPredictionIds.add(prediction.id);
 
-            if (result === 'WON') report.summary.won++;
-            if (result === 'LOST') report.summary.lost++;
-            if (report.summary.pending > 0) report.summary.pending--;
+            if (result === 'WON') reportToProcess.summary.won++;
+            if (result === 'LOST') reportToProcess.summary.lost++;
+            if (reportToProcess.summary.pending > 0) reportToProcess.summary.pending--;
         }
+    }
+
+    // Identifier et ajouter les matchs non terminés (en attente)
+    const pendingPredictions = predictionsToProcess.filter(p => !processedPredictionIds.has(p.id));
+    for (const prediction of pendingPredictions) {
+        newResultsToSave.push({
+            predictionId: prediction.id,
+            data: {
+                predictionId: prediction.id,
+                market: prediction.market,
+                score: prediction.score,
+                odd: prediction.odd,
+                matchLabel: prediction.matchLabel,
+                leagueName: prediction.leagueName,
+                finalScore: null,
+                result: 'PENDING' // Statut explicite pour les matchs en attente
+            }
+        });
     }
     
     if (newResultsToSave.length > 0) {
         console.log(chalk.cyan(`   -> Sauvegarde de ${newResultsToSave.length} nouveaux résultats...`));
         await firestoreService.saveResultsBatch(executionId, newResultsToSave);
-
-        if (report.summary.pending === 0) {
-            report.status = 'COMPLETED';
-            console.log(chalk.green.bold(`   -> Rapport pour ${executionId} est maintenant complet !`));
-        }
-        report.lastUpdatedAt = new Date();
-        
-        const { results, ...reportToSave } = report;
-        await firestoreService.savePredictionReport(executionId, reportToSave);
-
-    } else {
-        console.log(chalk.yellow(`Aucun nouveau résultat de match terminé à traiter.`));
     }
+
+    if (reportToProcess.summary.pending === 0) {
+        reportToProcess.status = 'COMPLETED';
+        console.log(chalk.green.bold(`   -> Rapport pour ${executionId} est maintenant complet !`));
+    }
+    // Si ce n'est pas complet, le statut reste à PROCESSING pour la prochaine exécution.
+    reportToProcess.lastUpdatedAt = new Date();
+    
+    // On ne sauvegarde que les champs que l'on veut mettre à jour
+    await firestoreService.savePredictionReport(executionId, {
+        status: reportToProcess.status,
+        summary: reportToProcess.summary,
+        lastUpdatedAt: reportToProcess.lastUpdatedAt
+    });
     
     console.log(chalk.blue.bold("\n--- Job de Vérification des Résultats Terminé ---"));
-    const finalHtml = await generateHtmlReport({ [executionId]: report });
+    const finalHtml = await generateHtmlReport({ [executionId]: reportToProcess });
     res.status(200).send(finalHtml);
 });
