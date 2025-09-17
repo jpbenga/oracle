@@ -7,7 +7,7 @@
       <div class="flex items-center justify-between p-4 border-b border-[#222] bg-[#0A0A0A] relative z-10">
         <div>
           <h3 class="text-sm font-mono text-[#666]">
-            SHORTLIST - PRÉDICTIONS PERTINENTES
+            PREDICTIONS - PRÉDICTIONS PERTINENTES
           </h3>
           <div class="flex items-center gap-2">
             <span class="text-[#00FF41] font-mono">
@@ -39,14 +39,11 @@
                   <td class="p-2">{{ item.matchLabel }}</td>
                   <td class="p-2 text-[#00FF41]">{{ item.market | marketTranslate }}</td>
                   <td class="p-2">{{ item.score?.toFixed(0) }}%</td>
-                  <td class="p-2">{{ item.historicalSuccessRate?.toFixed(0) }}%</td>
+                  <td class="p-2">{{ item.historicalRate?.toFixed(0) }}%</td>
                   <td class="p-2">{{ item.odd || '...' }}</td>
                   <td class="p-2">
-                    <span [ngClass]="{
-                      'text-yellow-400': item.status === 'PENDING_ODDS',
-                      'text-green-400': item.status === 'COMPLETED'
-                    }">
-                      {{ item.status === 'PENDING_ODDS' ? 'EN ATTENTE DE COTE' : 'PRÊT' }}
+                    <span>
+                      {{ item.status }}
                     </span>
                   </td>
               </tr>

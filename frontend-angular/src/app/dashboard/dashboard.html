@@ -43,7 +43,7 @@
     </h2>
 
     <div *ngIf="objectKeys(ticketsData).length > 0; else noTickets">
-      <app-tickets-list [ticketsData]="ticketsData"></app-tickets-list>
+      <app-tickets-list [ticketsData]="ticketsData" [selectedDayOffset]="selectedDayOffset"></app-tickets-list>
     </div>
     <ng-template #noTickets>
       <app-empty-state
@@ -55,4 +55,4 @@
 </div>
 
 <!-- Raw Data Flow Modal -->
-<app-raw-data-flow *ngIf="showRawData" (close)="closeRawData()"></app-raw-data-flow>
+<app-raw-data-flow *ngIf="showRawData" (close)="closeRawData()" [selectedDayOffset]="selectedDayOffset"></app-raw-data-flow>

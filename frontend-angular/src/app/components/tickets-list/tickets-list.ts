@@ -21,7 +21,8 @@ export class TicketsList {
   get selectedDayKey(): string {
     const date = new Date();
     date.setDate(date.getDate() + this.selectedDayOffset);
-    return date.toLocaleDateString('fr-FR');
+    // Correction pour correspondre au format YYYY-MM-DD
+    return date.toISOString().split('T')[0];
   }
 
   get ticketsForSelectedDay() {

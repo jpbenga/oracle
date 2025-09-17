@@ -1,20 +1,18 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, from } from 'rxjs';
+import { Observable } from 'rxjs';
 import { Ticket } from '../types/api-types';
 import { Firestore, collection, query, where, onSnapshot, DocumentData, CollectionReference } from '@angular/fire/firestore';
-import { Functions, httpsCallable } from '@angular/fire/functions';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ApiService {
   private firestore: Firestore = inject(Firestore);
-  private functions: Functions = inject(Functions);
 
   constructor() { }
 
   private createRealtimeObservable<T>(ref: CollectionReference, date: string): Observable<T[]> {
-    const q = query(ref, where("date", "==", date));
+    const q = query(ref, where("creation_date", "==", date));
 
     return new Observable<T[]>(observer => {
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -22,6 +20,7 @@ export class ApiService {
         querySnapshot.forEach((doc) => {
           results.push({ id: doc.id, ...doc.data() } as T);
         });
+        console.log('[ApiService] Données brutes reçues de Firestore (getTickets):', results); // LOG 2
         observer.next(results);
       }, (error) => {
         console.error(`Erreur de souscription en temps réel pour ${ref.path}:`, error);
@@ -32,19 +31,23 @@ export class ApiService {
     });
   }
 
-  getDashboardStats(): Observable<any> {
-    const getStats = httpsCallable(this.functions, 'getDashboardStats');
-    return from(getStats());
-  }
-
   getTickets(date: string): Observable<Ticket[]> {
     const ticketsCollection = collection(this.firestore, 'tickets') as CollectionReference<DocumentData>;
     return this.createRealtimeObservable<Ticket>(ticketsCollection, date);
   }
 
-  getShortlist(): Observable<any[]> {
-    const shortlistCollection = collection(this.firestore, 'shortlist');
-    const q = query(shortlistCollection);
+  getShortlist(date: Date): Observable<any[]> {
+    const predictionsCollection = collection(this.firestore, 'predictions');
+
+    // Calculer le début et la fin de la journée pour la date fournie
+    const startOfDay = new Date(date.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(date.setHours(23, 59, 59, 999));
+
+    const q = query(predictionsCollection, 
+      where("matchDate", ">=", startOfDay.toISOString()),
+      where("matchDate", "<=", endOfDay.toISOString()),
+      where("odd", ">=", 1.25)
+    );
 
     return new Observable<any[]>(observer => {
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -52,10 +55,12 @@ export class ApiService {
         querySnapshot.forEach((doc) => {
           results.push({ id: doc.id, ...doc.data() });
         });
-        results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        console.log('[ApiService] Données brutes reçues de Firestore (Prédictions):', results);
+        // Tri par date de match
+        results.sort((a, b) => new Date(a.matchDate).getTime() - new Date(b.matchDate).getTime());
         observer.next(results);
       }, (error) => {
-        console.error(`Erreur de souscription en temps réel pour la shortlist:`, error);
+        console.error(`Erreur de souscription en temps réel pour les prédictions:`, error);
         observer.error(error);
       });
 

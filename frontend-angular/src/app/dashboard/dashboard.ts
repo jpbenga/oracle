@@ -2,7 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ApiService } from '../services/api.service';
-import { AuthService } from '../services/auth.service';
+// import { AuthService } from '../services/auth.service';
 import { DaySelector } from '../components/day-selector/day-selector';
 import { TicketsList } from '../components/tickets-list/tickets-list';
 import { ArchitectsSimulator } from '../components/architects-simulator/architects-simulator';
@@ -36,23 +36,23 @@ export class Dashboard implements OnInit {
   historicalTickets: Ticket[] = [];
   showRawData = false;
 
-  authService = inject(AuthService);
+  // authService = inject(AuthService);
   apiService = inject(ApiService);
   objectKeys = Object.keys;
 
   ngOnInit(): void {
-    this.loadInitialStats();
+    // this.loadInitialStats();
     const date = this.getDateFromOffset(0);
     this.loadDataForDate(date);
   }
 
-  loadInitialStats(): void {
-    this.apiService.getDashboardStats().subscribe((response: any) => {
-      const stats = response.data;
-      this.sevenDayRate = stats.sevenDayRate;
-      this.historicalTickets = stats.historicalTickets;
-    });
-  }
+  // loadInitialStats(): void {
+  //   this.apiService.getDashboardStats().subscribe((response: any) => {
+  //     const stats = response.data;
+  //     this.sevenDayRate = stats.sevenDayRate;
+  //     this.historicalTickets = stats.historicalTickets;
+  //   });
+  // }
 
   openRawData(): void {
     this.showRawData = true;
@@ -63,6 +63,7 @@ export class Dashboard implements OnInit {
   }
 
   loadDataForDate(date: string): void {
+    console.log(`[Dashboard] Chargement des données pour la date : ${date}`); // LOG 1
     this.isLoading = true;
     this.error = null;
     this.predictionsData = {};
