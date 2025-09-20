@@ -39,44 +39,32 @@ function parseOdds(oddsData) {
     const parsed = {};
     const fixtureOdds = oddsData[0];
     for (const bookmaker of fixtureOdds.bookmakers) {
-        const matchWinnerBet = bookmaker.bets.find(b => b.id === 1);
-        const doubleChanceBet = bookmaker.bets.find(b => b.id === 12);
-        if (matchWinnerBet) {
-            const homeOdd = parseFloat(matchWinnerBet.values.find(v => v.value === 'Home')?.odd);
-            const drawOdd = parseFloat(matchWinnerBet.values.find(v => v.value === 'Draw')?.odd);
-            const awayOdd = parseFloat(matchWinnerBet.values.find(v => v.value === 'Away')?.odd);
-            if (homeOdd && drawOdd && awayOdd) {
-                if (!parsed['draw']) parsed['draw'] = drawOdd;
-                const isHomeFavorite = homeOdd < awayOdd;
-                if (!parsed['favorite_win']) parsed['favorite_win'] = isHomeFavorite ? homeOdd : awayOdd;
-                if (!parsed['outsider_win']) parsed['outsider_win'] = isHomeFavorite ? awayOdd : homeOdd;
-                if (doubleChanceBet) {
-                    const homeDrawOdd = parseFloat(doubleChanceBet.values.find(v => v.value === 'Home/Draw')?.odd);
-                    const awayDrawOdd = parseFloat(doubleChanceBet.values.find(v => v.value === 'Draw/Away')?.odd);
-                    if (homeDrawOdd && awayDrawOdd) {
-                        if (!parsed['double_chance_favorite']) parsed['double_chance_favorite'] = isHomeFavorite ? homeDrawOdd : awayDrawOdd;
-                        if (!parsed['double_chance_outsider']) parsed['double_chance_outsider'] = isHomeFavorite ? awayDrawOdd : homeDrawOdd;
-                    }
-                }
-            }
-        }
+        const bookmakerName = bookmaker.name;
         for (const bet of bookmaker.bets) {
             switch (bet.id) {
-                case 5: bet.values.forEach(v => { const k = `match_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
-                case 8: bet.values.forEach(v => { const k = v.value === 'Yes' ? 'btts' : 'btts_no'; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
-                case 16: bet.values.forEach(v => { const k = `home_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
-                case 17: bet.values.forEach(v => { const k = `away_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
-                case 6: bet.values.forEach(v => { const k = `ht_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
-                case 26: bet.values.forEach(v => { const k = `st_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
-                case 105: bet.values.forEach(v => { const k = `home_ht_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
-                case 106: bet.values.forEach(v => { const k = `away_ht_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = parseFloat(v.odd); }); break;
+                case 1:
+                    bet.values.forEach(v => {
+                        const market = v.value.toLowerCase() + '_win';
+                        if (!parsed[market]) parsed[market] = { odd: parseFloat(v.odd), bookmaker: bookmakerName };
+                    });
+                    const drawValue = bet.values.find(v => v.value === 'Draw');
+                    if(drawValue && !parsed['draw']) parsed['draw'] = { odd: parseFloat(drawValue.odd), bookmaker: bookmakerName };
+                    break;
+                case 5: bet.values.forEach(v => { const k = `match_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+                case 8: bet.values.forEach(v => { const k = v.value === 'Yes' ? 'btts' : 'btts_no'; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+                case 16: bet.values.forEach(v => { const k = `home_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+                case 17: bet.values.forEach(v => { const k = `away_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+                case 6: bet.values.forEach(v => { const k = `ht_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+                case 26: bet.values.forEach(v => { const k = `st_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+                case 105: bet.values.forEach(v => { const k = `home_ht_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+                case 106: bet.values.forEach(v => { const k = `away_ht_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
             }
         }
     }
     return parsed;
 }
 
-function generatePredictionHtml(predictionsByLeague, status) {
+function generatePredictionHtml(predictionsByLeague, globalStatus) {
     const css = `
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
         h1, h2 { color: #bb86fc; border-bottom: 2px solid #373737; padding-bottom: 10px; }
@@ -85,10 +73,8 @@ function generatePredictionHtml(predictionsByLeague, status) {
         table { width: 100%; border-collapse: collapse; background-color: #1e1e1e; border-radius: 8px; overflow: hidden; }
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #373737; }
         th { background-color: #2a2a2a; }
-        details { background-color: #1e1e1e; }
-        summary { cursor: pointer; padding: 8px 15px; background-color: #1e1e1e; font-style: italic; color: #aaa; border-bottom: 1px solid #373737;}
-        summary:hover { background-color: #2a2a2a; }
-        .details-table { margin: 0; border-radius: 0; box-shadow: none; }
+        .team-cell { display: flex; align-items: center; }
+        .team-logo { width: 20px; height: 20px; margin-right: 10px; }
         .score { font-weight: bold; }
         .rate-high { color: #28a745; }
         .score-high { color: #03dac6; } .score-mid { color: #f0e68c; }
@@ -98,93 +84,75 @@ function generatePredictionHtml(predictionsByLeague, status) {
 
     let html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Prédictions des Matchs</title><style>${css}</style></head><body>
         <h1>Prédictions des Matchs à Venir</h1>
-        <div class="status"><strong>Statut :</strong> ${status}</div>`;
+        <div class="status"><strong>Statut du cycle :</strong> ${globalStatus}</div>`;
 
     if (Object.keys(predictionsByLeague).length > 0) {
         for (const leagueName in predictionsByLeague) {
-            html += `<div class="league-container"><h2>${leagueName}</h2><table>
-                        <thead><tr><th>Match</th><th>Date</th><th>Heure</th><th>Marché le + Fiable</th><th>Taux Réussite Hist.</th></tr></thead><tbody>`;
+            html += `<div class="league-container"><h2><img src="${predictionsByLeague[leagueName][0].league.logo}" class="team-logo" alt=""> ${leagueName} (${predictionsByLeague[leagueName][0].league.country})</h2><table>
+                        <thead><tr><th>Match</th><th>Meilleur Pari</th><th>Confiance</th><th>Cote</th><th>Bookmaker</th></tr></thead><tbody>`;
             predictionsByLeague[leagueName].forEach(match => {
                 const bestBet = getIntuitiveBestBet(match.scores, 60);
                 const scoreClass = bestBet.score >= 90 ? 'score-very-high' : bestBet.score >= 75 ? 'score-high' : 'score-mid';
-                const bestBetOdd = match.odds[bestBet.market];
-                const bestBetHistRate = match.historicalRates[bestBet.market];
+                const bestBetOddInfo = match.odds[bestBet.market];
+                
                 html += `
                     <tr>
-                        <td>${match.matchLabel}</td>
-                        <td>${match.date}</td>
-                        <td>${match.time}</td>
-                        <td>${bestBet.market} <span class="score ${scoreClass}">(${Math.round(bestBet.score)}%)</span> @ ${bestBetOdd ? bestBetOdd.toFixed(2) : '<span class="na">N/A</span>'}</td>
-                        <td class="rate-high"><b>${bestBetHistRate ? bestBetHistRate.toFixed(2) + '%' : 'N/A'}</b></td>
-                    </tr>
-                    <tr><td colspan="5" style="padding:0;">
-                        <details>
-                            <summary>Voir tous les marchés éligibles</summary>
-                            <table class="details-table">
-                                <thead><tr><th>Marché</th><th>Score Confiance</th><th>Taux Réussite Hist.</th><th>Cote</th></tr></thead>
-                                <tbody>`;
-                Object.keys(match.scores).sort().forEach(market => {
-                    const score = match.scores[market];
-                    const odd = match.odds[market];
-                    const histRate = match.historicalRates[market];
-                    const sClass = score >= 90 ? 'score-very-high' : score >= 75 ? 'score-high' : 'score-mid';
-                    html += `<tr>
-                                <td>${market}</td>
-                                <td class="score ${sClass}">${Math.round(score)}%</td>
-                                <td class="rate-high"><b>${histRate ? histRate.toFixed(2) + '%' : 'N/A'}</b></td>
-                                <td>${odd ? odd.toFixed(2) : '<span class="na">N/A</span>'}</td>
-                            </tr>`;
-                });
-                html += `</tbody></table></details></td></tr>`;
+                        <td>
+                            <div class="team-cell"><img src="${match.home_team.logo}" class="team-logo" alt=""> ${match.home_team.name}</div>
+                            <div class="team-cell"><img src="${match.away_team.logo}" class="team-logo" alt=""> ${match.away_team.name}</div>
+                            <small>${new Date(match.matchDate).toLocaleString('fr-FR')}</small>
+                        </td>
+                        <td>${bestBet.market}</td>
+                        <td class="score ${scoreClass}">${Math.round(bestBet.score)}%</td>
+                        <td>${bestBetOddInfo ? bestBetOddInfo.odd.toFixed(2) : '<span class="na">N/A</span>'}</td>
+                        <td>${bestBetOddInfo ? bestBetOddInfo.bookmaker : '<span class="na">N/A</span>'}</td>
+                    </tr>`;
             });
             html += `</tbody></table></div>`;
         }
     } else {
-        html += `<p>Aucune prédiction éligible à afficher.</p>`;
+        html += `<p>Aucune prédiction éligible à afficher pour ce cycle.</p>`;
     }
     html += `</body></html>`;
     return html;
 }
 
-
-functions.http('runPrediction', async (req, res) => {
-    console.log(chalk.blue.bold("---" + "Démarrage du Job de Prédiction" + "---"));
+functions.http('prediction', async (req, res) => {
+    console.log(chalk.blue.bold("---Démarrage du Job de Prédiction---"));
     
+    const predictionRunId = `pred-run-${new Date().toISOString()}`;
+    await firestoreService.savePredictionRun(predictionRunId, { status: 'Analyse en cours', createdAt: new Date() });
+
     const season = new Date().getFullYear();
     const eligiblePredictions = [];
 
     const latestRun = await firestoreService.getLatestBacktestRun();
 
     if (!latestRun || !latestRun.whitelist || !latestRun.summary) {
-        const errorMsg = "ERREUR CRITIQUE: Aucune exécution de backtest valide (contenant une whitelist et un résumé) n'a été trouvée. Le backtesting doit être exécuté d'abord.";
+        const errorMsg = "ERREUR CRITIQUE: Aucune exécution de backtest valide n'a été trouvée.";
+        await firestoreService.savePredictionRun(predictionRunId, { status: 'Erreur', message: errorMsg });
         const errorHtml = generatePredictionHtml({}, errorMsg);
         res.status(500).send(errorHtml);
         return;
     }
 
     const { whitelist, summary: backtestSummary, executionId } = latestRun;
-    console.log(chalk.green(`Whitelist et résumé chargés avec succès depuis l'exécution: ${executionId}`));
-
+    console.log(chalk.green(`Whitelist et résumé chargés depuis l'exécution: ${executionId}`));
 
     for (const league of footballConfig.leaguesToAnalyze) {
-        console.log(chalk.cyan.bold(`
-[Prédiction] Analyse de la ligue : ${league.name}`));
+        console.log(chalk.cyan.bold(`\n[Prédiction] Analyse de la ligue : ${league.name}`));
         const upcomingMatches = await gestionJourneeService.getMatchesForPrediction(league.id, season);
         if (!upcomingMatches || upcomingMatches.length === 0) continue;
 
         for (const match of upcomingMatches) {
-            console.log(chalk.green(`
-   Calcul pour : ${match.teams.home.name} vs ${match.teams.away.name}`));
+            console.log(chalk.green(`\n   Calcul pour : ${match.teams.home.name} vs ${match.teams.away.name}`));
             const analysisResult = await analyseMatchService.analyseMatch(match);
             if (analysisResult && analysisResult.markets) {
                 const confidenceScores = analysisResult.markets;
                 
                 console.log(chalk.blue(`      -> Récupération des cotes pour le match ID: ${match.fixture.id}`));
                 const oddsData = await apiFootballService.getOddsForFixture(match.fixture.id);
-                console.log(`      -> Cotes reçues de l'API: ${oddsData && oddsData.length > 0 ? `${oddsData[0].bookmakers.length} bookmakers` : 'Aucune'}`);
-
                 const parsedOdds = parseOdds(oddsData || []);
-                console.log(`      -> Cotes interprétées: ${Object.keys(parsedOdds).length} cotes trouvées.`);
 
                 for (const market in confidenceScores) {
                     const score = confidenceScores[market];
@@ -193,23 +161,36 @@ functions.http('runPrediction', async (req, res) => {
                     if (!trancheKey) continue;
 
                     if (whitelist[market] && whitelist[market].includes(trancheKey)) {
-                        const odd = parsedOdds[market];
-                        const trancheData = backtestSummary[market]?.[trancheKey];
-                        const historicalRate = (trancheData && trancheData.total > 0) ? (trancheData.success / trancheData.total) * 100 : null;
+                        const oddInfo = parsedOdds[market];
+                        const marketHistoricalPerformance = backtestSummary[market];
 
-                        console.log(chalk.green.bold(`       -> Marché ${market} (score: ${score.toFixed(2)}%) VALIDÉ. Taux hist: ${historicalRate ? historicalRate.toFixed(2) + '%' : 'N/A'}. Cote: ${odd ? odd : 'N/A'}`));
+                        console.log(chalk.green.bold(`       -> Marché ${market} (score: ${score.toFixed(2)}%) VALIDÉ.`));
                         
                         const predictionData = {
+                            predictionRunId: predictionRunId,
                             backtestExecutionId: executionId,
                             fixtureId: match.fixture.id,
-                            matchLabel: `${match.teams.home.name} vs ${match.teams.away.name}`,
+                            home_team: {
+                                name: match.teams.home.name,
+                                logo: match.teams.home.logo
+                            },
+                            away_team: {
+                                name: match.teams.away.name,
+                                logo: match.teams.away.logo
+                            },
+                            league: {
+                                name: match.league.name,
+                                country: match.league.country,
+                                logo: match.league.logo
+                            },
                             matchDate: new Date(match.fixture.date).toISOString(),
-                            leagueName: league.name,
+                            match_status: 'Not Started',
                             market: market,
                             score: score,
-                            odd: odd || null,
-                            status: odd ? 'ELIGIBLE' : 'INCOMPLETE',
-                            historicalRate: historicalRate
+                            odd: oddInfo ? oddInfo.odd : null,
+                            bookmaker: oddInfo ? oddInfo.bookmaker : null,
+                            market_performance: marketHistoricalPerformance || {},
+                            status: oddInfo ? 'ELIGIBLE' : 'INCOMPLETE',
                         };
                         eligiblePredictions.push(predictionData);
                         await firestoreService.savePrediction(predictionData);
@@ -220,38 +201,37 @@ functions.http('runPrediction', async (req, res) => {
         }
     }
     
+    const finalStatus = `Analyse terminée. ${eligiblePredictions.length} prédictions éligibles trouvées.`;
+    await firestoreService.savePredictionRun(predictionRunId, { status: finalStatus, finishedAt: new Date(), eligible_predictions_count: eligiblePredictions.length });
+
     const predictionsByLeague = {};
     for (const pred of eligiblePredictions) {
-        if (!predictionsByLeague[pred.leagueName]) {
-            predictionsByLeague[pred.leagueName] = {};
+        const leagueName = pred.league.name;
+        if (!predictionsByLeague[leagueName]) {
+            predictionsByLeague[leagueName] = [];
         }
-        if (!predictionsByLeague[pred.leagueName][pred.fixtureId]) {
-            const matchDate = new Date(pred.matchDate);
-            predictionsByLeague[pred.leagueName][pred.fixtureId] = {
-                matchLabel: pred.matchLabel,
-                date: matchDate.toLocaleDateString('fr-FR'),
-                time: matchDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        
+        let matchEntry = predictionsByLeague[leagueName].find(m => m.fixtureId === pred.fixtureId);
+        if (!matchEntry) {
+            matchEntry = {
+                fixtureId: pred.fixtureId,
+                home_team: pred.home_team,
+                away_team: pred.away_team,
+                league: pred.league,
+                matchDate: pred.matchDate,
                 scores: {},
                 odds: {},
-                historicalRates: {}
+                market_performances: {}
             };
+            predictionsByLeague[leagueName].push(matchEntry);
         }
-        predictionsByLeague[pred.leagueName][pred.fixtureId].scores[pred.market] = pred.score;
-        predictionsByLeague[pred.leagueName][pred.fixtureId].odds[pred.market] = pred.odd;
-        predictionsByLeague[pred.leagueName][pred.fixtureId].historicalRates[pred.market] = pred.historicalRate;
+        matchEntry.scores[pred.market] = pred.score;
+        matchEntry.odds[pred.market] = { odd: pred.odd, bookmaker: pred.bookmaker };
+        matchEntry.market_performances[pred.market] = pred.market_performance;
     }
-
-    const finalPredictions = Object.keys(predictionsByLeague).reduce((acc, leagueName) => {
-        acc[leagueName] = Object.values(predictionsByLeague[leagueName]);
-        return acc;
-    }, {});
-
-    const status = `Prédictions prêtes. ${eligiblePredictions.length} marchés éligibles trouvés.`;
-    console.log(chalk.blue.bold(`
----
-${status}
----`));
-    const htmlResponse = generatePredictionHtml(finalPredictions, status);
+    
+    console.log(chalk.blue.bold(`\n--- ${finalStatus} ---`));
+    const htmlResponse = generatePredictionHtml(Object.values(predictionsByLeague).length > 0 ? predictionsByLeague : {}, finalStatus);
 
     try {
         console.log(chalk.green("Déclenchement de la fonction de génération de tickets..."));
@@ -259,7 +239,7 @@ ${status}
         if (ticketGeneratorUrl && ticketGeneratorUrl !== 'placeholder') {
             await axios.get(ticketGeneratorUrl, { timeout: 300000 });
         } else {
-             console.log(chalk.yellow("URL du générateur de tickets non configurée. Arrêt de la chaîne."));
+             console.log(chalk.yellow("URL du générateur de tickets non configurée."));
         }
         res.status(200).send(htmlResponse);
     } catch (error) {

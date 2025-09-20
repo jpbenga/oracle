@@ -152,8 +152,7 @@ function generateBacktestingHtml(report) {
     return html;
 }
 
-
-functions.http('runBacktestingAndStrategy', async (req, res) => {
+functions.http('backtesting-and-strategy', async (req, res) => {
     console.log(chalk.blue.bold("---" + " Démarrage du Job de Backtesting & Stratégie " + "---"));
 
     const isDbConnected = await firestoreService.testConnection();
@@ -169,8 +168,7 @@ functions.http('runBacktestingAndStrategy', async (req, res) => {
     const season = new Date().getFullYear();
 
     for (const league of footballConfig.leaguesToAnalyze) {
-        console.log(chalk.cyan(`
-[Backtest] Analyse de la ligue : ${league.name}`));
+        console.log(chalk.cyan(`\n[Backtest] Analyse de la ligue : ${league.name}`));
         const finishedMatches = await gestionJourneeService.getMatchesForBacktesting(league.id, season);
 
         if (finishedMatches && finishedMatches.length > 0) {
