@@ -125,7 +125,7 @@ async function generateHtmlReport(predictions, globalStatus) {
     return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Rapport de Vérification</title><style>${css}</style></head><body>${body}</body></html>`;
 }
 
-functions.http('results-checker', async (req, res) => {
+functions.http('resultsChecker', async (req, res) => {
     console.log(chalk.blue.bold("--- Démarrage du Job de Vérification des Résultats ---"));
 
     const pendingPredictions = await firestoreService.getPendingPredictions();

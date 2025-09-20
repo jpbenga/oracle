@@ -117,7 +117,7 @@ function generatePredictionHtml(predictionsByLeague, globalStatus) {
     return html;
 }
 
-functions.http('prediction', async (req, res) => {
+functions.http('runPrediction', async (req, res) => {
     console.log(chalk.blue.bold("---Démarrage du Job de Prédiction---"));
     
     const predictionRunId = `pred-run-${new Date().toISOString()}`;

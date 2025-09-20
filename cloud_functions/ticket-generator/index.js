@@ -144,7 +144,7 @@ function generateTicketsForDay(predictions) {
     return allPossibleTickets;
 }
 
-functions.http('ticket-generator', async (req, res) => {
+functions.http('runTicketGenerator', async (req, res) => {
     console.log(chalk.blue.bold("---Démarrage du Job de Génération de Tickets---"));
 
     const today = new Date();
