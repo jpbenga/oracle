@@ -104,7 +104,7 @@ function generatePredictionHtml(predictionsByLeague, globalStatus) {
                         </td>
                         <td>${bestBet.market}</td>
                         <td class="score ${scoreClass}">${Math.round(bestBet.score)}%</td>
-                        <td>${bestBetOddInfo ? bestBetOddInfo.odd.toFixed(2) : '<span class="na">N/A</span>'}</td>
+                        <td>${(bestBetOddInfo && typeof bestBetOddInfo.odd === 'number') ? bestBetOddInfo.odd.toFixed(2) : '<span class="na">N/A</span>'}</td>
                         <td>${bestBetOddInfo ? bestBetOddInfo.bookmaker : '<span class="na">N/A</span>'}</td>
                     </tr>`;
             });
@@ -191,6 +191,7 @@ functions.http('runPrediction', async (req, res) => {
                             bookmaker: oddInfo ? oddInfo.bookmaker : null,
                             market_performance: marketHistoricalPerformance || {},
                             status: oddInfo ? 'ELIGIBLE' : 'INCOMPLETE',
+                            result: null,
                         };
                         eligiblePredictions.push(predictionData);
                         await firestoreService.savePrediction(predictionData);
