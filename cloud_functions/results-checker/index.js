@@ -1,4 +1,3 @@
-// Force git to detect changes
 const functions = require('@google-cloud/functions-framework');
 const chalk = require('chalk');
 const { firestoreService } = require('./common/services/Firestore.service');
@@ -192,6 +191,13 @@ functions.http('resultsChecker', async (req, res) => {
             const result = allMarketResults[prediction.market] || 'UNKNOWN';
             const fixture = fixturesData.find(f => f.fixture.id === prediction.fixtureId);
 
+            if (!fixture || !fixture.teams || !fixture.teams.home || !fixture.teams.away) {
+                console.log(chalk.yellow(`Données de match incomplètes pour fixtureId: ${prediction.fixtureId}. Prédiction ignorée.`));
+                continue;
+            }
+
+            const matchLabel = `${fixture.teams.home.name} vs ${fixture.teams.away.name}`;
+
             newResultsToSave.push({
                 predictionId: prediction.id,
                 data: {
@@ -199,7 +205,7 @@ functions.http('resultsChecker', async (req, res) => {
                     market: prediction.market,
                     score: prediction.score,
                     odd: prediction.odd,
-                    matchLabel: prediction.matchLabel,
+                    matchLabel: matchLabel,
                     leagueName: prediction.leagueName,
                     finalScore: { home: fixture.goals.home, away: fixture.goals.away },
                     result: result

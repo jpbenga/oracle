@@ -1,259 +1,261 @@
 const functions = require('@google-cloud/functions-framework');
 const chalk = require('chalk');
 const { firestoreService } = require('./common/services/Firestore.service');
+const { footballConfig } = require('./common/config/football.config');
+const { gestionJourneeService } = require('./common/services/GestionJournee.service');
+const { analyseMatchService } = require('./common/services/AnalyseMatch.service');
 const { apiFootballService } = require('./common/services/ApiFootball.service');
+const axios = require('axios');
 
-function determineResultsFromFixture(fixture) {
-    const results = {};
-    const ff = fixture.goals;
-    const fh = fixture.score.halftime;
-    if (ff.home === null || ff.away === null || fh.home === null || fh.away === null) return {};
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-    results['home_win'] = ff.home > ff.away ? 'WON' : 'LOST';
-    results['away_win'] = ff.away > ff.home ? 'WON' : 'LOST';
-    results['draw'] = ff.home === ff.away ? 'WON' : 'LOST';
-
-    const sh = { home: ff.home - fh.home, away: ff.away - fh.away };
-    results['btts'] = ff.home > 0 && ff.away > 0 ? 'WON' : 'LOST';
-    results['btts_no'] = !(ff.home > 0 && ff.away > 0) ? 'WON' : 'LOST';
-
-    [0.5, 1.5, 2.5, 3.5, 4.5, 5.5].forEach(t => {
-        results[`match_over_${t}`] = (ff.home + ff.away > t) ? 'WON' : 'LOST';
-        results[`match_under_${t}`] = (ff.home + ff.away < t) ? 'WON' : 'LOST';
-        results[`ht_over_${t}`] = (fh.home + fh.away > t) ? 'WON' : 'LOST';
-        results[`ht_under_${t}`] = (fh.home + fh.away < t) ? 'WON' : 'LOST';
-        results[`st_over_${t}`] = (sh.home + sh.away > t) ? 'WON' : 'LOST';
-        results[`st_under_${t}`] = (sh.home + sh.away < t) ? 'WON' : 'LOST';
-        results[`home_over_${t}`] = (ff.home > t) ? 'WON' : 'LOST';
-        results[`home_under_${t}`] = (ff.home < t) ? 'WON' : 'LOST';
-        results[`away_over_${t}`] = (ff.away > t) ? 'WON' : 'LOST';
-        results[`away_under_${t}`] = (ff.away < t) ? 'WON' : 'LOST';
-        results[`home_ht_over_${t}`] = (fh.home > t) ? 'WON' : 'LOST';
-        results[`home_ht_under_${t}`] = (fh.home < t) ? 'WON' : 'LOST';
-        results[`away_ht_over_${t}`] = (fh.away > t) ? 'WON' : 'LOST';
-        results[`away_ht_under_${t}`] = (fh.away < t) ? 'WON' : 'LOST';
-        results[`home_st_over_${t}`] = (sh.home > t) ? 'WON' : 'LOST';
-        results[`home_st_under_${t}`] = (sh.home < t) ? 'WON' : 'LOST';
-        results[`away_st_over_${t}`] = (sh.away > t) ? 'WON' : 'LOST';
-        results[`away_st_under_${t}`] = (sh.away < t) ? 'WON' : 'LOST';
-    });
-    return results;
+function getTrancheKey(score) {
+    if (score >= 90) return "90-100";
+    if (score >= 80) return "80-89";
+    if (score >= 70) return "70-79";
+    if (score >= 60) return "60-69";
+    if (score >= 0) return "0-59";
+    return null;
 }
 
-async function generateHtmlReport(reports) {
+function getIntuitiveBestBet(scores, minConfidence = 60) {
+    let bestBet = { market: 'N/A', score: 0 };
+    let maxConfidence = 0;
+    for (const market in scores) {
+        const score = scores[market];
+        if (score >= minConfidence) {
+            const confidence = Math.abs(score - 50);
+            if (confidence > maxConfidence) {
+                maxConfidence = confidence;
+                bestBet = { market, score };
+            }
+        }
+    }
+    return bestBet;
+}
+
+function parseOdds(oddsData) {
+    if (!oddsData || oddsData.length === 0) return {};
+    const parsed = {};
+    const fixtureOdds = oddsData[0];
+    for (const bookmaker of fixtureOdds.bookmakers) {
+        const bookmakerName = bookmaker.name;
+        for (const bet of bookmaker.bets) {
+            switch (bet.id) {
+                case 1:
+                    bet.values.forEach(v => {
+                        const market = v.value.toLowerCase() + '_win';
+                        if (!parsed[market]) parsed[market] = { odd: parseFloat(v.odd), bookmaker: bookmakerName };
+                    });
+                    const drawValue = bet.values.find(v => v.value === 'Draw');
+                    if(drawValue && !parsed['draw']) parsed['draw'] = { odd: parseFloat(drawValue.odd), bookmaker: bookmakerName };
+                    break;
+                case 5: bet.values.forEach(v => { const k = `match_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+                case 8: bet.values.forEach(v => { const k = v.value === 'Yes' ? 'btts' : 'btts_no'; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+                case 16: bet.values.forEach(v => { const k = `home_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+                case 17: bet.values.forEach(v => { const k = `away_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+                case 6: bet.values.forEach(v => { const k = `ht_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+                case 26: bet.values.forEach(v => { const k = `st_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+                case 105: bet.values.forEach(v => { const k = `home_ht_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+                case 106: bet.values.forEach(v => { const k = `away_ht_${v.value.toLowerCase().replace(' ', '_')}`; if (!parsed[k]) parsed[k] = { odd: parseFloat(v.odd), bookmaker: bookmakerName }; }); break;
+            }
+        }
+    }
+    return parsed;
+}
+
+function generatePredictionHtml(predictionsByLeague, globalStatus) {
     const css = `
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
-        h1, h2, h3 { color: #bb86fc; border-bottom: 2px solid #373737; padding-bottom: 10px; }
-        .report-container { background-color: #1e1e1e; border: 1px solid #373737; border-radius: 8px; margin-bottom: 30px; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #373737; }
+        h1, h2 { color: #bb86fc; border-bottom: 2px solid #373737; padding-bottom: 10px; }
+        .status { background-color: #1e1e1e; border: 1px solid #373737; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 1.1em; }
+        .league-container { margin-bottom: 30px; }
+        table { width: 100%; border-collapse: collapse; background-color: #1e1e1e; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #373737; }
         th { background-color: #2a2a2a; }
-        .status-WON { color: #03dac6; font-weight: bold; }
-        .status-LOST { color: #cf6679; font-weight: bold; }
-        .status-UNKNOWN { color: #888; }
-        .summary { display: flex; flex-wrap: wrap; gap: 20px; font-size: 1.1em; margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #373737; }
+        .team-cell { display: flex; align-items: center; }
+        .team-logo { width: 20px; height: 20px; margin-right: 10px; }
+        .score { font-weight: bold; }
+        .rate-high { color: #28a745; }
+        .score-high { color: #03dac6; } .score-mid { color: #f0e68c; }
+        .score-very-high { color: #00ff00; font-weight: bold; }
+        .na { color: #666; }
     `;
-    let body = `<h1>Rapport de Vérification des Résultats</h1>`;
 
-    if (Object.keys(reports).length === 0) {
-        body += `<p>Aucun rapport de prédiction à afficher.</p>`;
-    }
+    let html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Prédictions des Matchs</title><style>${css}</style></head><body>
+        <h1>Prédictions des Matchs à Venir</h1>
+        <div class="status"><strong>Statut du cycle :</strong> ${globalStatus}</div>`;
 
-    for (const executionId in reports) {
-        const report = reports[executionId];
-        const summary = report.summary;
-        
-        const allResults = await firestoreService.getReportResults(executionId);
-
-        body += `
-            <div class="report-container">
-                <h2>Rapport pour l'exécution : ${executionId.substring(0, 20)}...</h2>
-                <div class="summary">
-                    <span>Total: ${summary.total}</span>
-                    <span class="status-WON">Gagnés: ${summary.won}</span>
-                    <span class="status-LOST">Perdus: ${summary.lost}</span>
-                    <span>En attente: ${summary.pending}</span>
-                </div>`;
-
-        const resultsByLeague = allResults.reduce((acc, res) => {
-            const league = res.leagueName || 'Inconnue';
-            if (!acc[league]) acc[league] = [];
-            acc[league].push(res);
-            return acc;
-        }, {});
-
-        for (const league in resultsByLeague) {
-            body += `<h3>${league}</h3>
-                     <table>
-                        <thead>
-                            <tr>
-                                <th>Match</th>
-                                <th>Marché</th>
-                                <th>Confiance</th>
-                                <th>Score Final</th>
-                                <th>Résultat</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
-            
-            const sortedResults = resultsByLeague[league].sort((a, b) => {
-                if (a.matchLabel < b.matchLabel) return -1;
-                if (a.matchLabel > b.matchLabel) return 1;
-                if (a.market < b.market) return -1;
-                if (a.market > b.market) return 1;
-                return 0;
-            });
-
-            sortedResults.forEach(res => {
-                body += `
+    if (Object.keys(predictionsByLeague).length > 0) {
+        for (const leagueName in predictionsByLeague) {
+            html += `<div class="league-container"><h2><img src="${predictionsByLeague[leagueName][0].league.logo}" class="team-logo" alt=""> ${leagueName} (${predictionsByLeague[leagueName][0].league.country})</h2><table>
+                        <thead><tr><th>Match</th><th>Meilleur Pari</th><th>Confiance</th><th>Cote</th><th>Bookmaker</th></tr></thead><tbody>`;
+            predictionsByLeague[leagueName].forEach(match => {
+                const bestBet = getIntuitiveBestBet(match.scores, 60);
+                const scoreClass = bestBet.score >= 90 ? 'score-very-high' : bestBet.score >= 75 ? 'score-high' : 'score-mid';
+                const bestBetOddInfo = match.odds[bestBet.market];
+                
+                html += `
                     <tr>
-                        <td>${res.matchLabel}</td>
-                        <td>${res.market}</td>
-                        <td>${res.score ? res.score.toFixed(2) + '%' : 'N/A'}</td>
-                        <td>${res.finalScore ? `${res.finalScore.home} - ${res.finalScore.away}` : '-'}</td>
-                        <td class="status-${res.result}">${res.result}</td>
-                    </tr>
-                `;
+                        <td>
+                            <div class="team-cell"><img src="${match.home_team.logo}" class="team-logo" alt=""> ${match.home_team.name}</div>
+                            <div class="team-cell"><img src="${match.away_team.logo}" class="team-logo" alt=""> ${match.away_team.name}</div>
+                            <small>${new Date(match.matchDate).toLocaleString('fr-FR')}</small>
+                        </td>
+                        <td>${bestBet.market}</td>
+                        <td class="score ${scoreClass}">${Math.round(bestBet.score)}%</td>
+                        <td>${(bestBetOddInfo && typeof bestBetOddInfo.odd === 'number') ? bestBetOddInfo.odd.toFixed(2) : '<span class="na">N/A</span>'}</td>
+                        <td>${bestBetOddInfo ? bestBetOddInfo.bookmaker : '<span class="na">N/A</span>'}</td>
+                    </tr>`;
             });
-            body += `</tbody></table>`;
+            html += `</tbody></table></div>`;
         }
-        body += `</div>`;
+    } else {
+        html += `<p>Aucune prédiction éligible à afficher pour ce cycle.</p>`;
     }
-
-    return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Rapport de Vérification</title><style>${css}</style></head><body>${body}</body></html>`;
+    html += `</body></html>`;
+    return html;
 }
 
+functions.http('runPrediction', async (req, res) => {
+    console.log(chalk.blue.bold("---Démarrage du Job de Prédiction---"));
+    
+    const predictionRunId = `pred-run-${new Date().toISOString()}`;
+    await firestoreService.savePredictionRun(predictionRunId, { status: 'Analyse en cours', createdAt: new Date() });
 
-functions.http('resultsChecker', async (req, res) => {
-    console.log(chalk.blue.bold("--- Démarrage du Job de Vérification des Résultats ---"));
+    const season = new Date().getFullYear();
+    const eligiblePredictions = [];
 
     const latestRun = await firestoreService.getLatestBacktestRun();
-    if (!latestRun) {
-        console.log(chalk.yellow("Aucun cycle d'exécution (backtest_run) trouvé."));
-        const html = await generateHtmlReport({});
-        res.status(200).send(html);
-        return;
-    }
-    const executionId = latestRun.executionId;
-    console.log(chalk.cyan(`Ciblage du dernier cycle d'exécution : ${executionId}`));
 
-    let report = await firestoreService.getPredictionReport(executionId);
-    
-    if (report && report.status === 'COMPLETED') {
-        console.log(chalk.green.bold(`Le rapport pour ${executionId} est déjà complet.`));
-        const finalHtml = await generateHtmlReport({ [executionId]: report });
-        res.status(200).send(finalHtml);
-        return;
-    }
-    
-    const predictionsForRun = await firestoreService.getPredictionsForRun(executionId);
-    console.log(chalk.white.bold(`   -> ${predictionsForRun.length} prédiction(s) trouvée(s) pour ce cycle.`));
-    
-    if (!report) {
-        report = {
-            executionId: executionId,
-            createdAt: new Date(),
-            status: 'PROCESSING',
-            summary: { total: predictionsForRun.length, won: 0, lost: 0, pending: predictionsForRun.length },
-        };
-    }
-    
-    const existingResults = await firestoreService.getReportResults(executionId);
-    const existingResultIds = new Set(existingResults.map(r => r.predictionId));
-
-    const predictionsToProcess = predictionsForRun.filter(p => !existingResultIds.has(p.id));
-    
-    if (predictionsToProcess.length === 0) {
-        console.log(chalk.gray(`Toutes les prédictions pour ce cycle ont déjà un résultat.`));
-        const finalHtml = await generateHtmlReport({ [executionId]: report });
-        res.status(200).send(finalHtml);
+    if (!latestRun || !latestRun.whitelist || !latestRun.summary) {
+        const errorMsg = "ERREUR CRITIQUE: Aucune exécution de backtest valide n'a été trouvée.";
+        await firestoreService.savePredictionRun(predictionRunId, { status: 'Erreur', message: errorMsg });
+        const errorHtml = generatePredictionHtml({}, errorMsg);
+        res.status(500).send(errorHtml);
         return;
     }
 
-    const fixtureIdsToQuery = [...new Set(predictionsToProcess.map(p => p.fixtureId))];
-    console.log(chalk.cyan(`   -> Récupération des résultats pour ${fixtureIdsToQuery.length} match(s) unique(s)...`));
-    
-    const fixturesData = await apiFootballService.getFixturesByIds(fixtureIdsToQuery);
+    const { whitelist, summary: backtestSummary, executionId } = latestRun;
+    console.log(chalk.green(`Whitelist et résumé chargés depuis l'exécution: ${executionId}`));
 
-    const fixtureResultsMap = {};
-    fixturesData.forEach(fixture => {
-        if (fixture.fixture.status.short === 'FT') {
-            fixtureResultsMap[fixture.fixture.id] = determineResultsFromFixture(fixture);
-        }
-    });
-
-    const newResultsToSave = [];
-    let wonCount = 0;
-    let lostCount = 0;
-    for (const prediction of predictionsToProcess) {
-        const allMarketResults = fixtureResultsMap[prediction.fixtureId];
-        if (allMarketResults) {
-            const result = allMarketResults[prediction.market] || 'UNKNOWN';
-            const fixture = fixturesData.find(f => f.fixture.id === prediction.fixtureId);
-
-            if (!fixture || !fixture.teams || !fixture.teams.home || !fixture.teams.away) {
-                console.log(chalk.yellow(`Données de match incomplètes pour fixtureId: ${prediction.fixtureId}. Prédiction ignorée.`));
-                continue;
-            }
-
-            const matchLabel = `${fixture.teams.home.name} vs ${fixture.teams.away.name}`;
-
-            newResultsToSave.push({
-                predictionId: prediction.id,
-                data: {
-                    predictionId: prediction.id,
-                    market: prediction.market,
-                    score: prediction.score,
-                    odd: prediction.odd,
-                    matchLabel: matchLabel,
-                    leagueName: prediction.leagueName,
-                    finalScore: { home: fixture.goals.home, away: fixture.goals.away },
-                    result: result
-                }
-            });
-
-            if (result === 'WON') {
-                report.summary.won++;
-                wonCount++;
-            }
-            if (result === 'LOST') {
-                report.summary.lost++;
-                lostCount++;
-            }
-            if (report.summary.pending > 0) report.summary.pending--;
-        }
-    }
-    
-    if (newResultsToSave.length > 0) {
-        console.log(chalk.cyan(`   -> Sauvegarde de ${newResultsToSave.length} nouveaux résultats...`));
-        await firestoreService.saveResultsBatch(executionId, newResultsToSave);
-
-        if (report.summary.pending === 0) {
-            report.status = 'COMPLETED';
-            console.log(chalk.green.bold(`   -> Rapport pour ${executionId} est maintenant complet !`));
-        }
-        report.lastUpdatedAt = new Date();
+    for (const league of footballConfig.leaguesToAnalyze) {
+        console.log(chalk.cyan.bold(`\n[Prédiction] Analyse de la ligue : ${league.name}`));
         
-        const { results, ...reportToSave } = report;
-        await firestoreService.savePredictionReport(executionId, reportToSave);
+        const journeeData = await gestionJourneeService.getMatchesForPrediction(league.id, season);
+        
+        if (!journeeData) {
+            console.log(chalk.yellow(`   -> Aucune donnée de journée à analyser pour ${league.name}.`));
+            continue;
+        }
 
-    } else {
-        console.log(chalk.yellow(`Aucun nouveau résultat de match terminé à traiter.`));
+        const { fixtures, standings, previousStandings } = journeeData;
+        const context = { standings, previousStandings };
+
+        for (const match of fixtures) {
+            console.log(chalk.green(`\n   Calcul pour : ${match.teams.home.name} vs ${match.teams.away.name}`));
+            
+            const analysisResult = await analyseMatchService.analyseMatch(match, context);
+            
+            if (analysisResult && analysisResult.markets) {
+                const confidenceScores = analysisResult.markets;
+                
+                console.log(chalk.blue(`      -> Récupération des cotes pour le match ID: ${match.fixture.id}`));
+                const oddsData = await apiFootballService.getOddsForFixture(match.fixture.id);
+                const parsedOdds = parseOdds(oddsData || []);
+
+                for (const market in confidenceScores) {
+                    const score = confidenceScores[market];
+                    if (typeof score === 'undefined') continue;
+                    const trancheKey = getTrancheKey(score);
+                    if (!trancheKey) continue;
+
+                    if (whitelist[market] && whitelist[market].includes(trancheKey)) {
+                        const oddInfo = parsedOdds[market];
+                        const marketHistoricalPerformance = backtestSummary[market];
+
+                        console.log(chalk.green.bold(`       -> Marché ${market} (score: ${score.toFixed(2)}%) VALIDÉ.`));
+                        
+                        const predictionData = {
+                            predictionRunId: predictionRunId,
+                            backtestExecutionId: executionId,
+                            fixtureId: match.fixture.id,
+                            matchLabel: `${match.teams.home.name} vs ${match.teams.away.name}`,
+                            home_team: {
+                                name: match.teams.home.name,
+                                logo: match.teams.home.logo
+                            },
+                            away_team: {
+                                name: match.teams.away.name,
+                                logo: match.teams.away.logo
+                            },
+                            league: {
+                                name: match.league.name,
+                                country: match.league.country,
+                                logo: match.league.logo
+                            },
+                            matchDate: new Date(match.fixture.date).toISOString(),
+                            match_status: 'Not Started',
+                            market: market,
+                            score: score,
+                            odd: oddInfo ? oddInfo.odd : null,
+                            bookmaker: oddInfo ? oddInfo.bookmaker : null,
+                            market_performance: marketHistoricalPerformance || {},
+                            status: oddInfo ? 'ELIGIBLE' : 'INCOMPLETE',
+                            result: null,
+                        };
+                        eligiblePredictions.push(predictionData);
+                        await firestoreService.savePrediction(predictionData);
+                    }
+                }
+                await sleep(500);
+            }
+        }
     }
     
-    const totalProcessedInRun = wonCount + lostCount;
-    const successRate = totalProcessedInRun > 0 ? ((wonCount / totalProcessedInRun) * 100).toFixed(2) : 0;
-    
-    let finalMessage = `Job de Vérification des Résultats Terminé. Total prédictions cycle: ${report.summary.total}.`;
+    const finalStatus = `Analyse terminée. ${eligiblePredictions.length} prédictions éligibles trouvées.`;
+    await firestoreService.savePredictionRun(predictionRunId, { status: finalStatus, finishedAt: new Date(), eligible_predictions_count: eligiblePredictions.length });
 
-    if (totalProcessedInRun > 0) {
-        finalMessage += ` Matchs terminés et analysés: ${totalProcessedInRun} (Gagnés: ${wonCount}, Perdus: ${lostCount}, Taux de réussite: ${successRate}%).`;
-    } else {
-        finalMessage += ` Aucun nouveau match terminé à analyser.`;
+    const predictionsByLeague = {};
+    for (const pred of eligiblePredictions) {
+        const leagueName = pred.league.name;
+        if (!predictionsByLeague[leagueName]) {
+            predictionsByLeague[leagueName] = [];
+        }
+        
+        let matchEntry = predictionsByLeague[leagueName].find(m => m.fixtureId === pred.fixtureId);
+        if (!matchEntry) {
+            matchEntry = {
+                fixtureId: pred.fixtureId,
+                home_team: pred.home_team,
+                away_team: pred.away_team,
+                league: pred.league,
+                matchDate: pred.matchDate,
+                scores: {},
+                odds: {},
+                market_performances: {}
+            };
+            predictionsByLeague[leagueName].push(matchEntry);
+        }
+        matchEntry.scores[pred.market] = pred.score;
+        matchEntry.odds[pred.market] = { odd: pred.odd, bookmaker: pred.bookmaker };
+        matchEntry.market_performances[pred.market] = pred.market_performance;
     }
+    
+    console.log(chalk.blue.bold(`\n--- ${finalStatus} ---`));
+    const htmlResponse = generatePredictionHtml(Object.values(predictionsByLeague).length > 0 ? predictionsByLeague : {}, finalStatus);
 
-    console.log(chalk.blue.bold(`
---- ${finalMessage} ---`));
-    const finalHtml = await generateHtmlReport({ [executionId]: report });
-    res.status(200).send(finalHtml);
+    try {
+        console.log(chalk.green("Déclenchement de la fonction de génération de tickets..."));
+        const ticketGeneratorUrl = process.env.TICKET_FUNCTION_URL;
+        if (ticketGeneratorUrl && ticketGeneratorUrl !== 'placeholder') {
+            await axios.get(ticketGeneratorUrl, { timeout: 300000 });
+        } else {
+             console.log(chalk.yellow("URL du générateur de tickets non configurée."));
+        }
+        res.status(200).send(htmlResponse);
+    } catch (error) {
+        console.error(chalk.red("Erreur lors du déclenchement de la fonction de génération de tickets : "), error.message);
+        res.status(500).send(htmlResponse);
+    }
 });
