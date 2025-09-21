@@ -141,12 +141,22 @@ functions.http('runPrediction', async (req, res) => {
 
     for (const league of footballConfig.leaguesToAnalyze) {
         console.log(chalk.cyan.bold(`\n[Prédiction] Analyse de la ligue : ${league.name}`));
-        const upcomingMatches = await gestionJourneeService.getMatchesForPrediction(league.id, season);
-        if (!upcomingMatches || upcomingMatches.length === 0) continue;
+        
+        const journeeData = await gestionJourneeService.getMatchesForPrediction(league.id, season);
+        
+        if (!journeeData) {
+            console.log(chalk.yellow(`   -> Aucune donnée de journée à analyser pour ${league.name}.`));
+            continue;
+        }
 
-        for (const match of upcomingMatches) {
+        const { fixtures, standings, previousStandings } = journeeData;
+        const context = { standings, previousStandings };
+
+        for (const match of fixtures) {
             console.log(chalk.green(`\n   Calcul pour : ${match.teams.home.name} vs ${match.teams.away.name}`));
-            const analysisResult = await analyseMatchService.analyseMatch(match);
+            
+            const analysisResult = await analyseMatchService.analyseMatch(match, context);
+            
             if (analysisResult && analysisResult.markets) {
                 const confidenceScores = analysisResult.markets;
                 

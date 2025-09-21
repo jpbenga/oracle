@@ -55,6 +55,10 @@ class ApiFootballService {
     return this.makeRequest('/teams/statistics', { team: teamId, league: leagueId, season });
   }
 
+  async getStandings(leagueId, season) {
+    return this.makeRequest('/standings', { league: leagueId, season: season });
+  }
+
   async getOddsForFixture(fixtureId) {
     return this.makeRequest('/odds', { fixture: fixtureId });
   }

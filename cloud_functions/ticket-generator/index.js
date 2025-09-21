@@ -147,54 +147,72 @@ function generateTicketsForDay(predictions) {
 functions.http('runTicketGenerator', async (req, res) => {
     console.log(chalk.blue.bold("---Démarrage du Job de Génération de Tickets---"));
 
-    const today = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(today.getDate() + 1);
+    let generatedTickets = [];
+    let generatedForDate = null;
 
-    const todayStr = today.toISOString().split('T')[0];
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    // Boucle pour trouver le prochain jour sans tickets (J, J+1, J+2...)
+    for (let i = 0; i < 7; i++) { // On cherche sur 7 jours max
+        const targetDate = new Date();
+        targetDate.setDate(targetDate.getDate() + i);
+        const targetDateStr = targetDate.toISOString().split('T')[0];
 
-    const todayPredictions = await firestoreService.getEligiblePredictionsForDate(todayStr);
-    const tomorrowPredictions = await firestoreService.getEligiblePredictionsForDate(tomorrowStr);
-    
-    const allPredictions = [...todayPredictions, ...tomorrowPredictions];
+        console.log(chalk.cyan(`Vérification des tickets pour le ${targetDateStr}...`));
 
-    if (allPredictions.length === 0) {
-        console.log(chalk.yellow('Aucune prédiction éligible trouvée pour J et J+1.'));
-        res.status(200).send(generateTicketsHtml([]));
-        return;
+        const ticketsExist = await firestoreService.doTicketsExistForDate(targetDateStr);
+
+        if (ticketsExist) {
+            console.log(chalk.yellow(`   -> Des tickets existent déjà pour le ${targetDateStr}. Passage au jour suivant.`));
+            continue; // Passe au jour suivant
+        }
+
+        // Si on arrive ici, c'est le bon jour pour générer les tickets
+        console.log(chalk.green.bold(`Aucun ticket trouvé pour le ${targetDateStr}. Lancement de la génération...`));
+        generatedForDate = targetDateStr;
+
+        const predictions = await firestoreService.getEligiblePredictionsForDate(targetDateStr);
+
+        if (predictions.length === 0) {
+            console.log(chalk.yellow(`   -> Aucune prédiction éligible trouvée pour le ${targetDateStr}.`));
+            // On ne break pas, peut-être qu'il y en a pour le jour d'après
+            continue;
+        }
+        
+        console.log(chalk.cyan(`   -> ${predictions.length} pronostics éligibles trouvés.`));
+        
+        const allPossibleTickets = generateTicketsForDay(predictions);
+        
+        if (allPossibleTickets.length === 0) {
+            console.log(chalk.yellow("   -> Aucun ticket n'a pu être généré avec les critères actuels."));
+            // On ne break pas, peut-être qu'il y en a pour le jour d'après
+            continue;
+        }
+
+        let bestTickets = allPossibleTickets
+            .sort((a, b) => b.totalOdd - a.totalOdd)
+            .slice(0, 3);
+        
+        console.log(chalk.magenta.bold(`   -> Sauvegarde de ${bestTickets.length} tickets dans Firestore...`));
+        for (const ticket of bestTickets) {
+            const ticketData = {
+                title: "The Oracle's Choice",
+                totalOdd: ticket.totalOdd,
+                creation_date: targetDateStr, // Utiliser la date cible
+                status: 'PENDING',
+                bets: ticket.bets
+            };
+            await firestoreService.saveTicket(ticketData);
+        }
+        
+        generatedTickets = bestTickets;
+        console.log(chalk.green.bold(`   -> ${generatedTickets.length} tickets sauvegardés avec succès pour le ${targetDateStr}.`));
+        
+        break; // On a généré les tickets, on sort de la boucle
     }
-    
-    console.log(chalk.cyan(`${allPredictions.length} pronostics éligibles trouvés pour J et J+1.`));
-    
-    const allPossibleTickets = generateTicketsForDay(allPredictions);
-    
-    if (allPossibleTickets.length === 0) {
-        console.log(chalk.yellow("Aucun ticket n'a pu être généré avec les critères actuels."));
-        res.status(200).send(generateTicketsHtml([]));
-        return;
+
+    if (generatedTickets.length === 0) {
+        console.log(chalk.yellow.bold("\nAucun ticket n'a été généré sur la période de recherche."));
     }
 
-    let bestTickets = allPossibleTickets
-        .sort((a, b) => b.totalOdd - a.totalOdd)
-        .slice(0, 3);
-    
-    await firestoreService.deletePendingTicketsForDate(todayStr);
-    await firestoreService.deletePendingTicketsForDate(tomorrowStr);
-    
-    console.log(chalk.magenta.bold(`\n-> Sauvegarde de ${bestTickets.length} tickets dans Firestore...`));
-    for (const ticket of bestTickets) {
-        const ticketData = {
-            title: "The Oracle's Choice",
-            totalOdd: ticket.totalOdd,
-            creation_date: new Date().toISOString().split('T')[0],
-            status: 'PENDING',
-            bets: ticket.bets
-        };
-        await firestoreService.saveTicket(ticketData);
-    }
-    console.log(chalk.green.bold(`-> ${bestTickets.length} tickets sauvegardés avec succès.`));
-    
     console.log(chalk.blue.bold("\n--- Job de Génération de Tickets Terminé ---"));
-    res.status(200).send(generateTicketsHtml(bestTickets));
+    res.status(200).send(generateTicketsHtml(generatedTickets));
 });
