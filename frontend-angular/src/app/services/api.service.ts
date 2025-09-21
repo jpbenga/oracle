@@ -12,7 +12,7 @@ export class ApiService {
   constructor() { }
 
   private createRealtimeObservable<T>(ref: CollectionReference, date: string): Observable<T[]> {
-    const q = query(ref, where("creation_date", "==", date));
+    const q = query(ref, where("date", "==", date));
 
     return new Observable<T[]>(observer => {
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
