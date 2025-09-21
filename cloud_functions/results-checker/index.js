@@ -192,18 +192,23 @@ functions.http('resultsChecker', async (req, res) => {
             const result = allMarketResults[prediction.market] || 'UNKNOWN';
             const fixture = fixturesData.find(f => f.fixture.id === prediction.fixtureId);
 
+            const dataToSave = {
+                predictionId: prediction.id,
+                market: prediction.market,
+                score: prediction.score,
+                odd: prediction.odd,
+                matchLabel: prediction.matchLabel,
+                leagueName: prediction.league.name, // Correction du chemin
+                finalScore: { home: fixture.goals.home, away: fixture.goals.away },
+                result: result
+            };
+
+            // Log détaillé de l'objet avant la sauvegarde
+            console.log("DEBUG: Objet à sauvegarder:", JSON.stringify(dataToSave, null, 2));
+
             newResultsToSave.push({
                 predictionId: prediction.id,
-                data: {
-                    predictionId: prediction.id,
-                    market: prediction.market,
-                    score: prediction.score,
-                    odd: prediction.odd,
-                    matchLabel: prediction.matchLabel,
-                    leagueName: prediction.league.name, // Correction du chemin
-                    finalScore: { home: fixture.goals.home, away: fixture.goals.away },
-                    result: result
-                }
+                data: dataToSave
             });
 
             if (result === 'WON') {
