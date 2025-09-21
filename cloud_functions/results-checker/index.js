@@ -166,7 +166,7 @@ functions.http('resultsChecker', async (req, res) => {
     if (predictionsToProcess.length === 0) {
         console.log(chalk.gray(`Toutes les prédictions pour ce cycle ont déjà un résultat.`));
         const finalHtml = await generateHtmlReport({ [executionId]: report });
-        res.status(200).send(html);
+        res.status(200).send(finalHtml);
         return;
     }
 
