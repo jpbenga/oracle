@@ -1,3 +1,4 @@
+// Force git to detect changes
 const { Firestore } = require('@google-cloud/firestore');
 
 class FirestoreService {

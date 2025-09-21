@@ -1,3 +1,4 @@
+// Force git to detect changes
 const functions = require('@google-cloud/functions-framework');
 const chalk = require('chalk');
 const { firestoreService } = require('./common/services/Firestore.service');
