@@ -103,6 +103,7 @@ function generateTicketsHtml(tickets) {
 
 
 function generateTicketsForDay(predictions) {
+    console.log(`   -> [generateTicketsForDay] Démarrage avec ${predictions.length} prédictions.`);
     const MIN_ODD = 1.88;
     const MAX_ODD = 2.25;
     let allPossibleTickets = [];
@@ -112,6 +113,7 @@ function generateTicketsForDay(predictions) {
     }
 
     const eligiblePredictions = predictions.filter(p => p.odd && p.market_performance);
+    console.log(`   -> [generateTicketsForDay] ${eligiblePredictions.length} prédictions restantes après filtre (odd & market_performance).`);
 
     for (const pred of eligiblePredictions) {
         if (pred.odd >= MIN_ODD && pred.odd <= MAX_ODD) {
@@ -121,12 +123,15 @@ function generateTicketsForDay(predictions) {
             });
         }
     }
+    console.log(`   -> [generateTicketsForDay] ${allPossibleTickets.length} tickets simples créés (cote entre ${MIN_ODD} et ${MAX_ODD}).`);
 
     const MIN_ODD_FOR_COMBOS = 1.35;
     const predictionsForCombos = eligiblePredictions.filter(p => p.odd >= MIN_ODD_FOR_COMBOS);
+    console.log(`   -> [generateTicketsForDay] ${predictionsForCombos.length} prédictions disponibles pour les combinés (cote >= ${MIN_ODD_FOR_COMBOS}).`);
 
     if (predictionsForCombos.length > 1) {
         const combosOfTwo = getCombinations(predictionsForCombos, 2);
+        console.log(`   -> [generateTicketsForDay] ${combosOfTwo.length} combinaisons de 2 possibles.`);
 
         for (const combo of combosOfTwo) {
             if (combo[0].fixtureId === combo[1].fixtureId) continue;
@@ -141,6 +146,7 @@ function generateTicketsForDay(predictions) {
         }
     }
 
+    console.log(`   -> [generateTicketsForDay] Total de ${allPossibleTickets.length} tickets possibles trouvés (simples + combinés).`);
     return allPossibleTickets;
 }
 
@@ -196,7 +202,7 @@ functions.http('runTicketGenerator', async (req, res) => {
             const ticketData = {
                 title: "The Oracle's Choice",
                 totalOdd: ticket.totalOdd,
-                creation_date: targetDateStr, // Utiliser la date cible
+                date: targetDateStr, // Utiliser la date cible
                 status: 'PENDING',
                 bets: ticket.bets
             };
