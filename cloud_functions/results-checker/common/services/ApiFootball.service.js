@@ -78,12 +78,26 @@ class ApiFootballService {
 
   async getFixturesByIds(ids) {
     if (!ids || ids.length === 0) return [];
-    console.log(chalk.yellow(`      -> Récupération de ${ids.length} match(s) individuellement via l'API.`));
+
+    const batchSize = 20; // Batch size for API requests
+    const batches = [];
+    for (let i = 0; i < ids.length; i += batchSize) {
+        batches.push(ids.slice(i, i + batchSize));
+    }
+
+    console.log(chalk.yellow(`      -> Récupération de ${ids.length} match(s) en ${batches.length} lot(s) via l'API.`));
+
+    const allFixtures = [];
+    for (const batch of batches) {
+        const idsString = batch.join('-');
+        const fixtures = await this.makeRequest('/fixtures', { ids: idsString });
+        if (fixtures) {
+            allFixtures.push(...fixtures);
+        }
+        await sleep(1000); // Sleep between batches to be nice to the API
+    }
     
-    const fixturePromises = ids.map(id => this.getMatchById(id));
-    const fixtures = await Promise.all(fixturePromises);
-    
-    return fixtures.filter(Boolean);
+    return allFixtures;
   }
 }
 

@@ -173,11 +173,7 @@ functions.http('resultsChecker', async (req, res) => {
     const fixtureIdsToQuery = [...new Set(predictionsToProcess.map(p => p.fixtureId))];
     console.log(chalk.cyan(`   -> Récupération des résultats pour ${fixtureIdsToQuery.length} match(s) unique(s)...`));
     
-    const fixturesData = [];
-    for (const id of fixtureIdsToQuery) {
-        const fixture = await apiFootballService.getMatchById(id);
-        if (fixture) fixturesData.push(fixture);
-    }
+    const fixturesData = await apiFootballService.getFixturesByIds(fixtureIdsToQuery);
 
     const fixtureResultsMap = {};
     fixturesData.forEach(fixture => {
