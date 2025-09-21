@@ -2,7 +2,7 @@ const { Firestore } = require('@google-cloud/firestore');
 
 class FirestoreService {
     constructor() {
-        this.firestore = new Firestore();
+        this.firestore = new Firestore({ projectId: 'oracle-prediction-firebase' });
         this.backtestCollection = this.firestore.collection('backtest_runs');
         this.predictionsCollection = this.firestore.collection('predictions');
         this.ticketsCollection = this.firestore.collection('tickets');
