@@ -150,6 +150,8 @@ functions.http('resultsChecker', async (req, res) => {
     }
 
     const updatedPredictions = [];
+    let wonCount = 0;
+    let lostCount = 0;
 
     for (const prediction of pendingPredictions) {
         const fixture = fixturesData.find(f => f.fixture.id === prediction.fixtureId);
@@ -159,9 +161,16 @@ functions.http('resultsChecker', async (req, res) => {
             
             if (newStatus === 'Completed') {
                 const allMarketResults = determineResultsFromFixture(fixture);
-                prediction.result = allMarketResults[prediction.market] || 'UNKNOWN';
+                const result = allMarketResults[prediction.market] || 'UNKNOWN';
+                prediction.result = result;
                 prediction.finalScore = fixture.goals;
                 prediction.halftimeScore = fixture.score.halftime;
+
+                if (result === 'WON') {
+                    wonCount++;
+                } else if (result === 'LOST') {
+                    lostCount++;
+                }
             }
             
             await firestoreService.updatePredictionStatus(prediction.id, {
@@ -174,7 +183,14 @@ functions.http('resultsChecker', async (req, res) => {
         }
     }
 
-    const finalMessage = `${updatedPredictions.length} prédictions mises à jour.`;
+    const totalProcessed = wonCount + lostCount;
+    const successRate = totalProcessed > 0 ? ((wonCount / totalProcessed) * 100).toFixed(2) : 0;
+    
+    let finalMessage = `${updatedPredictions.length} prédictions mises à jour.`;
+    if (totalProcessed > 0) {
+        finalMessage += ` Résultats des paris terminés: ${wonCount} gagnés, ${lostCount} perdus (Taux de réussite: ${successRate}%).`;
+    }
+
     console.log(chalk.blue.bold(`\n--- ${finalMessage} Job Terminé ---`));
     const finalHtml = await generateHtmlReport(pendingPredictions, finalMessage);
     res.status(200).send(finalHtml);
