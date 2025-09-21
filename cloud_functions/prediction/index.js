@@ -180,6 +180,7 @@ functions.http('runPrediction', async (req, res) => {
                             predictionRunId: predictionRunId,
                             backtestExecutionId: executionId,
                             fixtureId: match.fixture.id,
+                            matchLabel: `${match.teams.home.name} vs ${match.teams.away.name}`,
                             home_team: {
                                 name: match.teams.home.name,
                                 logo: match.teams.home.logo
