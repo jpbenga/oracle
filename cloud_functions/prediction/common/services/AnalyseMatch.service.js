@@ -48,54 +48,60 @@ class AnalyseMatchService {
     };
   }
 
-  async analyseMatch(match, preloadedStats) {
+  async analyseMatch(match, context) {
     const { teams, league } = match;
-    const season = league.season;
+    const { standings, previousStandings } = context;
+
     const homeTeamId = teams.home.id;
     const awayTeamId = teams.away.id;
 
-    let homeStats = preloadedStats?.home || null;
-    let awayStats = preloadedStats?.away || null;
+    // Extraire les statistiques du contexte (classement)
+    const homeStats = standings.find(s => s.team.id === homeTeamId);
+    const awayStats = standings.find(s => s.team.id === awayTeamId);
 
     if (!homeStats || !awayStats) {
-      [homeStats, awayStats] = await Promise.all([
-          apiFootballService.getTeamStats(homeTeamId, league.id, season),
-          apiFootballService.getTeamStats(awayTeamId, league.id, season)
-      ]);
-    }
-
-    if (!homeStats || !awayStats || !homeStats.goals || !awayStats.goals) {
-        console.log(chalk.red(`      -> Manque de statistiques pour le match ${teams.home.name} vs ${teams.away.name}.`));
+        console.log(chalk.red(`      -> Manque de statistiques dans le classement pour le match ${teams.home.name} vs ${teams.away.name}.`));
         return null;
     }
 
-    let homeAvgFor = parseFloat(homeStats.goals.for.average.total) || 0;
-    let homeAvgAgainst = parseFloat(homeStats.goals.against.average.total) || 0;
-    let awayAvgFor = parseFloat(awayStats.goals.for.average.total) || 0;
-    let awayAvgAgainst = parseFloat(awayStats.goals.against.average.total) || 0;
+    // L'API de classement fournit les stats différemment, nous devons adapter les noms
+    // homeStats.goals.for.total -> homeStats.all.goals.for
+    // homeStats.fixtures.played.total -> homeStats.all.played
+    // On recalcule les moyennes car elles ne sont pas directes
+    const homeMatchesPlayed = homeStats.all.played;
+    const awayMatchesPlayed = awayStats.all.played;
 
-    const matchesPlayed = homeStats.fixtures.played.total;
+    let homeAvgFor = homeMatchesPlayed > 0 ? homeStats.all.goals.for / homeMatchesPlayed : 0;
+    let homeAvgAgainst = homeMatchesPlayed > 0 ? homeStats.all.goals.against / homeMatchesPlayed : 0;
+    let awayAvgFor = awayMatchesPlayed > 0 ? awayStats.all.goals.for / awayMatchesPlayed : 0;
+    let awayAvgAgainst = awayMatchesPlayed > 0 ? awayStats.all.goals.against / awayMatchesPlayed : 0;
+
+    const matchesPlayed = homeMatchesPlayed; // Utiliser le nombre de matchs de l'équipe à domicile comme référence
     
     if (matchesPlayed > 0 && matchesPlayed < 6) {
         console.log(chalk.yellow(`      -> Début de saison détecté (${matchesPlayed} matchs). Application des corrections.`));
-        const [prevHomeStats, prevAwayStats] = await Promise.all([
-            apiFootballService.getTeamStats(homeTeamId, league.id, season - 1),
-            apiFootballService.getTeamStats(awayTeamId, league.id, season - 1)
-        ]);
+        
+        const prevHomeStats = previousStandings.find(s => s.team.id === homeTeamId);
+        const prevAwayStats = previousStandings.find(s => s.team.id === awayTeamId);
 
         let stabilityBoost = 1;
-        if (prevHomeStats?.goals && prevAwayStats?.goals) {
-            const prevHomeAvgFor = parseFloat(prevHomeStats.goals.for.average.total) || homeAvgFor;
-            const prevAwayAvgFor = parseFloat(prevAwayStats.goals.for.average.total) || awayAvgFor;
+        if (prevHomeStats && prevAwayStats) {
+            const prevHomeMatches = prevHomeStats.all.played;
+            const prevAwayMatches = prevAwayStats.all.played;
+
+            const prevHomeAvgFor = prevHomeMatches > 0 ? prevHomeStats.all.goals.for / prevHomeMatches : homeAvgFor;
+            const prevHomeAvgAgainst = prevHomeMatches > 0 ? prevHomeStats.all.goals.against / prevHomeMatches : homeAvgAgainst;
+            const prevAwayAvgFor = prevAwayMatches > 0 ? prevAwayStats.all.goals.for / prevAwayMatches : awayAvgFor;
+            const prevAwayAvgAgainst = prevAwayMatches > 0 ? prevAwayStats.all.goals.against / prevAwayMatches : awayAvgAgainst;
             
             const homeStability = Math.abs(prevHomeAvgFor - homeAvgFor) < 0.5 ? 1.1 : 1;
             const awayStability = Math.abs(prevAwayAvgFor - awayAvgFor) < 0.5 ? 1.1 : 1;
             stabilityBoost = (homeStability + awayStability) / 2;
 
             homeAvgFor = (0.8 * prevHomeAvgFor) + (0.2 * homeAvgFor);
-            homeAvgAgainst = (0.8 * (parseFloat(prevHomeStats.goals.against.average.total) || homeAvgAgainst)) + (0.2 * homeAvgAgainst);
+            homeAvgAgainst = (0.8 * prevHomeAvgAgainst) + (0.2 * homeAvgAgainst);
             awayAvgFor = (0.8 * prevAwayAvgFor) + (0.2 * awayAvgFor);
-            awayAvgAgainst = (0.8 * (parseFloat(prevAwayStats.goals.against.average.total) || awayAvgAgainst)) + (0.2 * awayAvgAgainst);
+            awayAvgAgainst = (0.8 * prevAwayAvgAgainst) + (0.2 * awayAvgAgainst);
         }
         
         homeAvgFor = this.bayesianSmooth(homeAvgFor, matchesPlayed) * stabilityBoost;
@@ -119,7 +125,12 @@ class AnalyseMatchService {
         away_st: (projectedAwayGoals * 0.55) * lambdaBoost
     };
 
-    return this.predict(lambdas, homeStats, awayStats, projectedHomeGoals, projectedAwayGoals);
+    // Le format des stats du classement est différent de celui de /teams/statistics
+    // Nous devons passer un objet compatible à la fonction predict
+    const compatibleHomeStats = { form: homeStats.form };
+    const compatibleAwayStats = { form: awayStats.form };
+
+    return this.predict(lambdas, compatibleHomeStats, compatibleAwayStats, projectedHomeGoals, projectedAwayGoals);
   }
 
   predict(lambdas, homeStats, awayStats, projectedHomeGoals, projectedAwayGoals) {
@@ -183,9 +194,9 @@ class AnalyseMatchService {
       markets[`match_${key}`] = matchProbs[key];
     }
 
-    if (markets['draw']) markets['draw'] = Math.min(100, markets['draw'] * 1.2);
-    if (markets['favorite_win']) markets['favorite_win'] = Math.min(100, markets['favorite_win'] * 1.2);
-    if (markets['outsider_win']) markets['outsider_win'] = Math.min(100, markets['outsider_win'] * 1.2);
+    if (markets['draw']) markets['draw'] *= 1.2;
+    if (markets['favorite_win']) markets['favorite_win'] *= 1.2;
+    if (markets['outsider_win']) markets['outsider_win'] *= 1.2;
 
     return { markets };
   }

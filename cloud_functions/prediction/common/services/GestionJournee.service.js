@@ -42,21 +42,53 @@ class GestionJourneeService {
     }
 
     async getMatchesForPrediction(leagueId, season) {
+        // 1. Identifier la journée en cours
         const rounds = await apiFootballService.getRounds(leagueId, season);
-        if (!rounds || rounds.length === 0) return [];
+        if (!rounds || rounds.length === 0) {
+            console.log(chalk.yellow(`      -> Aucune journée en cours trouvée pour la ligue ${leagueId}.`));
+            return null;
+        }
 
         const currentRoundName = rounds.find(r => r.includes("Regular Season"));
         if (!currentRoundName) {
-            console.log(chalk.gray(`      -> Nom de journée valide non trouvé.`));
-            return [];
+            console.log(chalk.yellow(`      -> Nom de la journée en cours non identifié.`));
+            return null;
         }
         console.log(chalk.green(`      -> Journée actuelle identifiée : "${currentRoundName}"`));
 
+        // 2. Récupérer les matchs de cette journée
         const fixtures = await apiFootballService.getFixturesByRound(leagueId, season, currentRoundName);
-        if (!fixtures) return [];
-        
+        if (!fixtures || fixtures.length === 0) {
+            console.log(chalk.yellow(`      -> Aucun match trouvé pour la journée "${currentRoundName}".`));
+            return null;
+        }
         console.log(chalk.green(`      -> ${fixtures.length} match(s) trouvé(s) pour la journée.`));
-        return fixtures;
+
+        // 3. Récupérer les classements (actuel et précédent)
+        const [standingsResponse, previousStandingsResponse] = await Promise.all([
+            apiFootballService.getStandings(leagueId, season),
+            apiFootballService.getStandings(leagueId, season - 1)
+        ]);
+
+        if (!standingsResponse || !standingsResponse[0] || !standingsResponse[0].league || !standingsResponse[0].league.standings) {
+            console.log(chalk.red(`      -> Impossible de récupérer le classement pour la ligue ${leagueId}.`));
+            return null;
+        }
+        const standings = standingsResponse[0].league.standings[0];
+        console.log(chalk.green(`      -> Classement actuel récupéré.`));
+
+        const previousStandings = (previousStandingsResponse && previousStandingsResponse[0] && previousStandingsResponse[0].league && previousStandingsResponse[0].league.standings) 
+            ? previousStandingsResponse[0].league.standings[0] 
+            : [];
+        console.log(chalk.green(`      -> Classement N-1 récupéré.`));
+
+        // 4. Retourner le paquet complet
+        return {
+            round: currentRoundName,
+            fixtures: fixtures,
+            standings: standings,
+            previousStandings: previousStandings
+        };
     }
 }
 
