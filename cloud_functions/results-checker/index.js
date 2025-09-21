@@ -63,7 +63,9 @@ async function generateHtmlReport(reports) {
     for (const executionId in reports) {
         const report = reports[executionId];
         const summary = report.summary;
-        
+        const totalProcessed = summary.won + summary.lost;
+        const successRate = totalProcessed > 0 ? ((summary.won / totalProcessed) * 100).toFixed(2) : 0;
+
         const allResults = await firestoreService.getReportResults(executionId);
 
         body += `
@@ -74,6 +76,7 @@ async function generateHtmlReport(reports) {
                     <span class="status-WON">Gagnés: ${summary.won}</span>
                     <span class="status-LOST">Perdus: ${summary.lost}</span>
                     <span>En attente: ${summary.pending}</span>
+                    <span><b>Taux de réussite: ${successRate}%</b></span>
                 </div>`;
 
         const resultsByLeague = allResults.reduce((acc, res) => {
