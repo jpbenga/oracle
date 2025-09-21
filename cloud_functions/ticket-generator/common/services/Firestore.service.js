@@ -61,7 +61,7 @@ class FirestoreService {
 
     async doTicketsExistForDate(dateStr) {
         const snapshot = await this.ticketsCollection
-            .where('creation_date', '==', dateStr)
+            .where('date', '==', dateStr)
             .limit(1)
             .get();
         
@@ -70,7 +70,7 @@ class FirestoreService {
 
     async deletePendingTicketsForDate(dateStr) {
         const snapshot = await this.ticketsCollection
-            .where('creation_date', '==', dateStr)
+            .where('date', '==', dateStr)
             .where('status', '==', 'PENDING')
             .get();
 
