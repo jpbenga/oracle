@@ -1,19 +1,18 @@
 import {
   withHttpTransferCache
-} from "./chunk-JGYIXEYR.js";
+} from "./chunk-TDPOIHRZ.js";
 import {
   CommonModule,
   DomAdapter,
   PLATFORM_BROWSER_ID,
   getDOM,
   setRootDomAdapter
-} from "./chunk-4UV435T5.js";
+} from "./chunk-QEOQMU2D.js";
 import {
   XhrFactory,
   parseCookieValue
-} from "./chunk-CZW6QYGI.js";
+} from "./chunk-ZJ25XCV3.js";
 import {
-  ANIMATIONS_DISABLED,
   APP_ID,
   ApplicationModule,
   ApplicationRef,
@@ -28,7 +27,6 @@ import {
   Injectable,
   InjectionToken,
   Injector,
-  MAX_ANIMATION_TIMEOUT,
   NgModule,
   NgZone,
   Optional,
@@ -50,6 +48,7 @@ import {
   _global,
   _sanitizeHtml,
   _sanitizeUrl,
+  allLeavingAnimations,
   allowSanitizationBypassAndThrow,
   bypassSanitizationTrustHtml,
   bypassSanitizationTrustResourceUrl,
@@ -59,7 +58,6 @@ import {
   createPlatformFactory,
   formatRuntimeError,
   forwardRef,
-  getAnimationElementRemovalRegistry,
   inject,
   internalCreateApplication,
   makeEnvironmentProviders,
@@ -75,7 +73,7 @@ import {
   ɵɵdefineInjector,
   ɵɵdefineNgModule,
   ɵɵinject
-} from "./chunk-FJ6DA6IA.js";
+} from "./chunk-IFESD5NC.js";
 import {
   __spreadValues
 } from "./chunk-5K356HEJ.js";
@@ -400,14 +398,11 @@ var DomRendererFactory2 = class _DomRendererFactory2 {
   platformId;
   ngZone;
   nonce;
-  animationDisabled;
-  maxAnimationTimeout;
   tracingService;
   rendererByCompId = /* @__PURE__ */ new Map();
   defaultRenderer;
   platformIsServer;
-  registry;
-  constructor(eventManager, sharedStylesHost, appId, removeStylesOnCompDestroy, doc, platformId, ngZone, nonce = null, animationDisabled, maxAnimationTimeout, tracingService = null) {
+  constructor(eventManager, sharedStylesHost, appId, removeStylesOnCompDestroy, doc, platformId, ngZone, nonce = null, tracingService = null) {
     this.eventManager = eventManager;
     this.sharedStylesHost = sharedStylesHost;
     this.appId = appId;
@@ -416,11 +411,9 @@ var DomRendererFactory2 = class _DomRendererFactory2 {
     this.platformId = platformId;
     this.ngZone = ngZone;
     this.nonce = nonce;
-    this.animationDisabled = animationDisabled;
-    this.maxAnimationTimeout = maxAnimationTimeout;
     this.tracingService = tracingService;
     this.platformIsServer = false;
-    this.defaultRenderer = new DefaultDomRenderer2(eventManager, doc, ngZone, this.platformIsServer, this.tracingService, this.registry = getAnimationElementRemovalRegistry(), this.maxAnimationTimeout);
+    this.defaultRenderer = new DefaultDomRenderer2(eventManager, doc, ngZone, this.platformIsServer, this.tracingService);
   }
   createRenderer(element, type) {
     if (!element || !type) {
@@ -452,12 +445,12 @@ var DomRendererFactory2 = class _DomRendererFactory2 {
       const tracingService = this.tracingService;
       switch (type.encapsulation) {
         case ViewEncapsulation.Emulated:
-          renderer = new EmulatedEncapsulationDomRenderer2(eventManager, sharedStylesHost, type, this.appId, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService, this.registry, this.animationDisabled, this.maxAnimationTimeout);
+          renderer = new EmulatedEncapsulationDomRenderer2(eventManager, sharedStylesHost, type, this.appId, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService);
           break;
         case ViewEncapsulation.ShadowDom:
-          return new ShadowDomRenderer(eventManager, sharedStylesHost, element, type, doc, ngZone, this.nonce, platformIsServer, tracingService, this.registry, this.maxAnimationTimeout);
+          return new ShadowDomRenderer(eventManager, sharedStylesHost, element, type, doc, ngZone, this.nonce, platformIsServer, tracingService);
         default:
-          renderer = new NoneEncapsulationDomRenderer(eventManager, sharedStylesHost, type, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService, this.registry, this.animationDisabled, this.maxAnimationTimeout);
+          renderer = new NoneEncapsulationDomRenderer(eventManager, sharedStylesHost, type, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService);
           break;
       }
       rendererByCompId.set(type.id, renderer);
@@ -475,7 +468,7 @@ var DomRendererFactory2 = class _DomRendererFactory2 {
     this.rendererByCompId.delete(componentId);
   }
   static ɵfac = function DomRendererFactory2_Factory(__ngFactoryType__) {
-    return new (__ngFactoryType__ || _DomRendererFactory2)(ɵɵinject(EventManager), ɵɵinject(SharedStylesHost), ɵɵinject(APP_ID), ɵɵinject(REMOVE_STYLES_ON_COMPONENT_DESTROY), ɵɵinject(DOCUMENT), ɵɵinject(PLATFORM_ID), ɵɵinject(NgZone), ɵɵinject(CSP_NONCE), ɵɵinject(ANIMATIONS_DISABLED), ɵɵinject(MAX_ANIMATION_TIMEOUT), ɵɵinject(TracingService, 8));
+    return new (__ngFactoryType__ || _DomRendererFactory2)(ɵɵinject(EventManager), ɵɵinject(SharedStylesHost), ɵɵinject(APP_ID), ɵɵinject(REMOVE_STYLES_ON_COMPONENT_DESTROY), ɵɵinject(DOCUMENT), ɵɵinject(PLATFORM_ID), ɵɵinject(NgZone), ɵɵinject(CSP_NONCE), ɵɵinject(TracingService, 8));
   };
   static ɵprov = ɵɵdefineInjectable({
     token: _DomRendererFactory2,
@@ -522,18 +515,6 @@ var DomRendererFactory2 = class _DomRendererFactory2 {
       args: [CSP_NONCE]
     }]
   }, {
-    type: void 0,
-    decorators: [{
-      type: Inject,
-      args: [ANIMATIONS_DISABLED]
-    }]
-  }, {
-    type: void 0,
-    decorators: [{
-      type: Inject,
-      args: [MAX_ANIMATION_TIMEOUT]
-    }]
-  }, {
     type: TracingService,
     decorators: [{
       type: Inject,
@@ -549,22 +530,18 @@ var DefaultDomRenderer2 = class {
   ngZone;
   platformIsServer;
   tracingService;
-  registry;
-  maxAnimationTimeout;
   data = /* @__PURE__ */ Object.create(null);
   /**
    * By default this renderer throws when encountering synthetic properties
    * This can be disabled for example by the AsyncAnimationRendererFactory
    */
   throwOnSyntheticProps = true;
-  constructor(eventManager, doc, ngZone, platformIsServer, tracingService, registry, maxAnimationTimeout) {
+  constructor(eventManager, doc, ngZone, platformIsServer, tracingService) {
     this.eventManager = eventManager;
     this.doc = doc;
     this.ngZone = ngZone;
     this.platformIsServer = platformIsServer;
     this.tracingService = tracingService;
-    this.registry = registry;
-    this.maxAnimationTimeout = maxAnimationTimeout;
   }
   destroy() {
   }
@@ -592,13 +569,6 @@ var DefaultDomRenderer2 = class {
     }
   }
   removeChild(_parent, oldChild) {
-    const {
-      elements
-    } = this.registry;
-    if (elements) {
-      elements.animate(oldChild, () => oldChild.remove(), this.maxAnimationTimeout);
-      return;
-    }
     oldChild.remove();
   }
   selectRootElement(selectorOrNode, preserveContent) {
@@ -714,8 +684,8 @@ var ShadowDomRenderer = class extends DefaultDomRenderer2 {
   sharedStylesHost;
   hostEl;
   shadowRoot;
-  constructor(eventManager, sharedStylesHost, hostEl, component, doc, ngZone, nonce, platformIsServer, tracingService, registry, maxAnimationTimeout) {
-    super(eventManager, doc, ngZone, platformIsServer, tracingService, registry, maxAnimationTimeout);
+  constructor(eventManager, sharedStylesHost, hostEl, component, doc, ngZone, nonce, platformIsServer, tracingService) {
+    super(eventManager, doc, ngZone, platformIsServer, tracingService);
     this.sharedStylesHost = sharedStylesHost;
     this.hostEl = hostEl;
     this.shadowRoot = hostEl.attachShadow({
@@ -771,12 +741,10 @@ var NoneEncapsulationDomRenderer = class extends DefaultDomRenderer2 {
   removeStylesOnCompDestroy;
   styles;
   styleUrls;
-  _animationDisabled;
-  constructor(eventManager, sharedStylesHost, component, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService, registry, animationDisabled, maxAnimationTimeout, compId) {
-    super(eventManager, doc, ngZone, platformIsServer, tracingService, registry, maxAnimationTimeout);
+  constructor(eventManager, sharedStylesHost, component, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService, compId) {
+    super(eventManager, doc, ngZone, platformIsServer, tracingService);
     this.sharedStylesHost = sharedStylesHost;
     this.removeStylesOnCompDestroy = removeStylesOnCompDestroy;
-    this._animationDisabled = animationDisabled;
     let styles = component.styles;
     if (ngDevMode) {
       const baseHref = getDOM().getBaseHref(doc) ?? "";
@@ -792,23 +760,17 @@ var NoneEncapsulationDomRenderer = class extends DefaultDomRenderer2 {
     if (!this.removeStylesOnCompDestroy) {
       return;
     }
-    if (!this._animationDisabled && this.registry.elements) {
-      this.ngZone.runOutsideAngular(() => {
-        setTimeout(() => {
-          this.sharedStylesHost.removeStyles(this.styles, this.styleUrls);
-        }, this.maxAnimationTimeout);
-      });
-      return;
+    if (allLeavingAnimations.size === 0) {
+      this.sharedStylesHost.removeStyles(this.styles, this.styleUrls);
     }
-    this.sharedStylesHost.removeStyles(this.styles, this.styleUrls);
   }
 };
 var EmulatedEncapsulationDomRenderer2 = class extends NoneEncapsulationDomRenderer {
   contentAttr;
   hostAttr;
-  constructor(eventManager, sharedStylesHost, component, appId, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService, registry, animationDisabled, maxAnimationTimeout) {
+  constructor(eventManager, sharedStylesHost, component, appId, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService) {
     const compId = appId + "-" + component.id;
-    super(eventManager, sharedStylesHost, component, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService, registry, animationDisabled, maxAnimationTimeout, compId);
+    super(eventManager, sharedStylesHost, component, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService, compId);
     this.contentAttr = shimContentAttribute(compId);
     this.hostAttr = shimHostAttribute(compId);
   }
@@ -2024,7 +1986,7 @@ function provideClientHydration(...features) {
   }
   return makeEnvironmentProviders([typeof ngDevMode !== "undefined" && ngDevMode ? provideZoneJsCompatibilityDetector() : [], typeof ngDevMode !== "undefined" && ngDevMode ? provideEnabledBlockingInitialNavigationDetector() : [], withDomHydration(), featuresKind.has(HydrationFeatureKind.NoHttpTransferCache) || hasHttpTransferCacheOptions ? [] : withHttpTransferCache({}), providers]);
 }
-var VERSION = new Version("20.3.0");
+var VERSION = new Version("20.3.1");
 
 export {
   EVENT_MANAGER_PLUGINS,
@@ -2069,9 +2031,9 @@ export {
 @angular/platform-browser/fesm2022/browser.mjs:
 @angular/platform-browser/fesm2022/platform-browser.mjs:
   (**
-   * @license Angular v20.3.0
+   * @license Angular v20.3.1
    * (c) 2010-2025 Google LLC. https://angular.io/
    * License: MIT
    *)
 */
-//# sourceMappingURL=chunk-NMZETCVU.js.map
+//# sourceMappingURL=chunk-XQQCP4IQ.js.map

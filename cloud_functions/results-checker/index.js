@@ -205,8 +205,8 @@ functions.http('resultsChecker', async (req, res) => {
                     market: prediction.market,
                     score: prediction.score,
                     odd: prediction.odd,
-                    matchLabel: matchLabel,
-                    leagueName: prediction.leagueName,
+                    matchLabel: prediction.matchLabel,
+                    leagueName: prediction.league.name, // Correction du chemin
                     finalScore: { home: fixture.goals.home, away: fixture.goals.away },
                     result: result
                 }
