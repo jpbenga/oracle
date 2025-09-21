@@ -105,7 +105,7 @@ class FirestoreService {
     }
 
     async getPredictionsForRun(executionId) {
-        const snapshot = await this.predictionsCollection.where('executionId', '==', executionId).get();
+        const snapshot = await this.predictionsCollection.where('backtestExecutionId', '==', executionId).get();
         if (snapshot.empty) {
             return [];
         }
