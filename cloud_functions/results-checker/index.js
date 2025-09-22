@@ -91,6 +91,7 @@ async function generateHtmlReport(reports) {
                      <table>
                         <thead>
                             <tr>
+                                <th>#</th>
                                 <th>Date</th>
                                 <th>Match</th>
                                 <th>Marché</th>
@@ -109,10 +110,11 @@ async function generateHtmlReport(reports) {
                 return 0;
             });
 
-            sortedResults.forEach(res => {
-                const matchDate = new Date(res.matchDate).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            sortedResults.forEach((res, index) => {
+                const matchDate = res.matchDate ? new Date(res.matchDate).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'N/A';
                 body += `
                     <tr>
+                        <td>${index + 1}</td>
                         <td>${matchDate}</td>
                         <td>${res.matchLabel}</td>
                         <td>${res.market}</td>
