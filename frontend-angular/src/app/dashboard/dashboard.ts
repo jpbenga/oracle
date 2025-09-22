@@ -8,7 +8,7 @@ import { TicketsList } from '../components/tickets-list/tickets-list';
 import { ArchitectsSimulator } from '../components/architects-simulator/architects-simulator';
 import { EmptyStateComponent } from '../components/empty-state/empty-state.component';
 import { RawDataFlow } from '../components/raw-data-flow/raw-data-flow';
-import { PredictionsApiResponse, Ticket, TicketsApiResponse } from '../types/api-types';
+import { Ticket, TicketsApiResponse } from '../types/api-types';
 import { catchError, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
 
@@ -27,7 +27,6 @@ import { of } from 'rxjs';
   templateUrl: './dashboard.html',
 })
 export class Dashboard implements OnInit {
-  predictionsData: PredictionsApiResponse = {};
   ticketsData: TicketsApiResponse = {};
   isLoading = true;
   error: { title: string, message: string } | null = null;
@@ -66,7 +65,6 @@ export class Dashboard implements OnInit {
     console.log(`[Dashboard] Chargement des données pour la date : ${date}`); // LOG 1
     this.isLoading = true;
     this.error = null;
-    this.predictionsData = {};
     this.ticketsData = {};
 
     this.apiService.getTickets(date).pipe(

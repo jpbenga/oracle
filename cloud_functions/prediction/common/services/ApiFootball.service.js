@@ -14,6 +14,21 @@ class ApiFootballService {
       },
       timeout: 20000,
     });
+    this.countriesCache = null;
+  }
+
+  async getCountries() {
+    if (this.countriesCache) {
+      return this.countriesCache;
+    }
+
+    const countries = await this.makeRequest('/countries');
+    if (!countries) {
+      return null;
+    }
+
+    this.countriesCache = new Map(countries.map(c => [c.name, c.code]));
+    return this.countriesCache;
   }
 
   async makeRequest(endpoint, params) {

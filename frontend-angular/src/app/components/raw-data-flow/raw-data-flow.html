@@ -3,64 +3,83 @@
       <!-- Matrix-inspired scanline effect -->
       <div class="scanline-effect"></div>
       
-      <!-- Header -->
-      <div class="flex items-center justify-between p-4 border-b border-[#222] bg-[#0A0A0A] relative z-10">
-        <div>
-          <h3 class="text-sm font-mono text-[#666]">
-            PREDICTIONS - PRÉDICTIONS PERTINENTES
-          </h3>
-          <div class="flex items-center gap-2">
-            <span class="text-[#00FF41] font-mono">
-              EN TEMPS RÉEL
-            </span>
-          </div>
-        </div>
-        <button (click)="onClose()" class="p-2 hover:bg-[#111] rounded-full transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
-      </div>
-
-      <!-- Shortlist Table -->
-      <div class="p-2 max-h-[70vh] overflow-y-auto relative z-10">
-        <ng-container *ngIf="shortlist$ | async as shortlist; else loading">
-          <table *ngIf="shortlist.length > 0; else empty" class="w-full border-collapse font-mono text-xs">
-            <thead class="text-[#666]">
-              <tr class="border-b border-[#222]">
-                <th class="p-2 text-left">MATCH</th>
-                <th class="p-2 text-left">MARCHÉ</th>
-                <th class="p-2 text-left">CONF. ALGO</th>
-                <th class="p-2 text-left">TX. RÉUSSITE HIST.</th>
-                <th class="p-2 text-left">COTE</th>
-                <th class="p-2 text-left">STATUT</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let item of shortlist" class="border-b border-[#111] hover:bg-[#0A0A0A]">
-                  <td class="p-2">{{ item.matchLabel }}</td>
-                  <td class="p-2 text-[#00FF41]">{{ item.market | marketTranslate }}</td>
-                  <td class="p-2">{{ item.score?.toFixed(0) }}%</td>
-                  <td class="p-2">{{ item.historicalRate?.toFixed(0) }}%</td>
-                  <td class="p-2">{{ item.odd || '...' }}</td>
-                  <td class="p-2">
-                    <span>
-                      {{ item.status }}
-                    </span>
-                  </td>
-              </tr>
-            </tbody>
-          </table>
-          <ng-template #empty>
-            <div class="text-center p-8 text-[#666]">
-              <p>Aucune prédiction pertinente dans la shortlist pour le moment.</p>
-              <p class="text-xs mt-2">Le système attend les prochains matchs à analyser.</p>
+      <ng-container *ngIf="shortlist$ | async as shortlist; else loading">
+        <!-- Header -->
+        <div class="flex items-center justify-between p-4 border-b border-[#222] bg-[#0A0A0A] relative z-10">
+          <div>
+            <h3 class="text-sm font-mono text-[#666]">
+              PREDICTIONS - PRÉDICTIONS PERTINENTES
+            </h3>
+            <div class="flex items-center gap-2 font-mono text-xs" [ngSwitch]="shortlist.report?.status">
+              <ng-container *ngSwitchCase="'PROCESSING'">
+                <div class="spinner"></div>
+                <span class="text-orange-400">Analyse en cours...</span>
+              </ng-container>
+              <ng-container *ngSwitchCase="'COMPLETED'">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                <span class="text-green-400">Analyse terminée</span>
+              </ng-container>
+              <ng-container *ngSwitchDefault>
+                <span class="text-[#00FF41]">EN TEMPS RÉEL</span>
+              </ng-container>
             </div>
-          </ng-template>
-        </ng-container>
-        <ng-template #loading>
-          <div class="text-center p-8 text-[#666]">
-            <p>Chargement du flux de données...</p>
           </div>
-        </ng-template>
-      </div>
+          <button (click)="onClose()" class="p-2 hover:bg-[#111] rounded-full transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+
+        <!-- Shortlist Table -->
+        <div class="p-2 max-h-[70vh] overflow-y-auto relative z-10">
+            <table *ngIf="shortlist.predictions.length > 0; else empty" class="w-full border-collapse font-mono text-xs">
+              <thead class="text-[#666]">
+                <tr class="border-b border-[#222]">
+                  <th class="p-2 text-left">MATCH</th>
+                  <th class="p-2 text-left">MARCHÉ</th>
+                  <th class="p-2 text-left">CONF. ALGO</th>
+                  <th class="p-2 text-left">COTE</th>
+                  <th class="p-2 text-left">STATUT</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of shortlist.predictions" class="border-b border-[#111] hover:bg-[#0A0A0A]">
+                    <td class="p-2">
+                      <div>{{ item.matchLabel }}</div>
+                      <div class="text-gray-400">{{ item.league?.name }} ({{ item.league?.country }})</div>
+                      <div class="text-gray-500 text-xs">{{ item.matchDate | date:'dd/MM/yyyy HH:mm' }}</div>
+                    </td>
+                    <td class="p-2 text-[#00FF41]">{{ item.market | marketTranslate }}</td>
+                    <td class="p-2">{{ item.score.toFixed(0) }}%</td>
+                    <td class="p-2">{{ item.odd || '...' }}</td>
+                    <td class="p-2" [ngSwitch]="item.resultStatus">
+                      <ng-container *ngSwitchCase="'WON'">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                      </ng-container>
+                      <ng-container *ngSwitchCase="'LOST'">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </ng-container>
+                      <ng-container *ngSwitchCase="'IN_PROGRESS'">
+                        <div class="spinner spinner-sm"></div>
+                      </ng-container>
+                      <ng-container *ngSwitchDefault>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.79 4 4s-1.79 4-4 4-4-1.79-4-4c0-1.105.448-2.09 1.172-2.828M12 18v.01" /></svg>
+                      </ng-container>
+                    </td>
+                </tr>
+              </tbody>
+            </table>
+            <ng-template #empty>
+              <div class="text-center p-8 text-[#666]">
+                <p>Aucune prédiction pertinente dans la shortlist pour le moment.</p>
+                <p class="text-xs mt-2">Le système attend les prochains matchs à analyser.</p>
+              </div>
+            </ng-template>
+        </div>
+      </ng-container>
+      <ng-template #loading>
+        <div class="text-center p-8 text-[#666]">
+          <p>Chargement du flux de données...</p>
+        </div>
+      </ng-template>
     </div>
   </div>

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ApiService } from '@app/services/api.service';
 import { Observable } from 'rxjs';
 import { MarketTranslatePipe } from '@app/pipes/market-translate.pipe';
+import { ShortlistResponse } from '@app/types/api-types';
 
 @Component({
   selector: 'app-raw-data-flow',
@@ -16,19 +17,12 @@ export class RawDataFlow implements OnInit {
   @Output() close = new EventEmitter<void>();
   
   private apiService = inject(ApiService);
-  public shortlist$!: Observable<any[]>;
-
-  constructor() {
-    console.log('[RawDataFlow] Le constructeur est appelé !');
-  }
+  public shortlist$!: Observable<ShortlistResponse>;
 
   ngOnInit(): void {
-    console.log(`[RawDataFlow] Initialisation du composant avec l'offset : ${this.selectedDayOffset}`);
     const date = new Date();
     date.setDate(date.getDate() + this.selectedDayOffset);
-    console.log(`[RawDataFlow] Date calculée pour la requête : ${date.toISOString()}`);
     this.shortlist$ = this.apiService.getShortlist(date);
-    console.log('[RawDataFlow] Observable de prédictions créé. En attente de souscription par le template...');
   }
 
   onClose(): void {

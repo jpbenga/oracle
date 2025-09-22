@@ -1,7 +1,8 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
-import { Ticket } from '../types/api-types';
-import { Firestore, collection, query, where, onSnapshot, DocumentData, CollectionReference } from '@angular/fire/firestore';
+import { Observable, of, combineLatest } from 'rxjs';
+import { switchMap, map } from 'rxjs/operators';
+import { Ticket, ShortlistResponse, Prediction, PredictionReport, PredictionResult } from '../types/api-types';
+import { Firestore, collection, query, where, onSnapshot, DocumentData, CollectionReference, doc } from '@angular/fire/firestore';
 
 @Injectable({
   providedIn: 'root'
@@ -20,10 +21,8 @@ export class ApiService {
         querySnapshot.forEach((doc) => {
           results.push({ id: doc.id, ...doc.data() } as T);
         });
-        console.log('[ApiService] Données brutes reçues de Firestore (getTickets):', results); // LOG 2
         observer.next(results);
       }, (error) => {
-        console.error(`Erreur de souscription en temps réel pour ${ref.path}:`, error);
         observer.error(error);
       });
 
@@ -36,35 +35,94 @@ export class ApiService {
     return this.createRealtimeObservable<Ticket>(ticketsCollection, date);
   }
 
-  getShortlist(date: Date): Observable<any[]> {
-    const predictionsCollection = collection(this.firestore, 'predictions');
-
-    // Calculer le début et la fin de la journée pour la date fournie
+  getShortlist(date: Date): Observable<ShortlistResponse> {
     const startOfDay = new Date(date.setHours(0, 0, 0, 0));
     const endOfDay = new Date(date.setHours(23, 59, 59, 999));
 
-    const q = query(predictionsCollection, 
+    const predictionsQuery = query(
+      collection(this.firestore, 'predictions'),
       where("matchDate", ">=", startOfDay.toISOString()),
       where("matchDate", "<=", endOfDay.toISOString()),
       where("odd", ">=", 1.25)
     );
 
-    return new Observable<any[]>(observer => {
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const results: any[] = [];
-        querySnapshot.forEach((doc) => {
-          results.push({ id: doc.id, ...doc.data() });
+    return new Observable<Prediction[]>(observer => {
+      const unsubscribe = onSnapshot(predictionsQuery, (snapshot) => {
+        const predictions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Prediction));
+        
+        const fixtureIdToLeagueMap = new Map<number, Prediction['league']>();
+        predictions.forEach(p => {
+          if (p.fixtureId && p.league) {
+            fixtureIdToLeagueMap.set(p.fixtureId, p.league);
+          }
         });
-        console.log('[ApiService] Données brutes reçues de Firestore (Prédictions):', results);
-        // Tri par date de match
-        results.sort((a, b) => new Date(a.matchDate).getTime() - new Date(b.matchDate).getTime());
-        observer.next(results);
-      }, (error) => {
-        console.error(`Erreur de souscription en temps réel pour les prédictions:`, error);
-        observer.error(error);
-      });
 
+        const predictionsWithLeague = predictions.map(p => {
+          if (!p.league && p.fixtureId && fixtureIdToLeagueMap.has(p.fixtureId)) {
+            return { ...p, league: fixtureIdToLeagueMap.get(p.fixtureId)! };
+          }
+          return p;
+        });
+
+        const uniquePredictions = [];
+        const seenIds = new Set();
+        for (const p of predictionsWithLeague) {
+            if (!seenIds.has(p.id)) {
+                seenIds.add(p.id);
+                uniquePredictions.push(p);
+            }
+        }
+
+        uniquePredictions.sort((a, b) => new Date(a.matchDate).getTime() - new Date(b.matchDate).getTime());
+        console.log('[ApiService] Données brutes reçues de Firestore (Prédictions):', uniquePredictions);
+        observer.next(uniquePredictions);
+      });
       return () => unsubscribe();
-    });
+    }).pipe(
+      switchMap(predictions => {
+        if (predictions.length === 0) {
+          return of({ report: null, predictions: [] });
+        }
+
+        const executionId = predictions[0].backtestExecutionId;
+        if (!executionId) {
+          return of({ report: null, predictions: predictions.map(p => ({...p, resultStatus: 'UNKNOWN' as const})) });
+        }
+
+        const reportRef = doc(this.firestore, 'prediction_reports', executionId);
+        const resultsRef = collection(this.firestore, `prediction_reports/${executionId}/results`);
+
+        const report$ = new Observable<PredictionReport | null>(observer => {
+          const unsubscribe = onSnapshot(reportRef, (doc) => {
+            observer.next(doc.exists() ? { executionId, ...doc.data() } as PredictionReport : null);
+          });
+          return () => unsubscribe();
+        });
+
+        const results$ = new Observable<PredictionResult[]>(observer => {
+          const unsubscribe = onSnapshot(resultsRef, (snapshot) => {
+            observer.next(snapshot.docs.map(doc => doc.data() as PredictionResult));
+          });
+          return () => unsubscribe();
+        });
+
+        return combineLatest([report$, results$]).pipe(
+          map(([report, results]) => {
+            const resultsMap = new Map(results.map(r => [r.predictionId, r.result]));
+            const enrichedPredictions = predictions.map((p): Prediction & { resultStatus?: 'WON' | 'LOST' | 'UNKNOWN' | 'IN_PROGRESS' } => {
+              const result = resultsMap.get(p.id);
+              if (result) {
+                return { ...p, resultStatus: result };
+              }
+              if (report?.status === 'PROCESSING') {
+                return { ...p, resultStatus: 'IN_PROGRESS' };
+              }
+              return { ...p, resultStatus: 'UNKNOWN' };
+            });
+            return { report, predictions: enrichedPredictions };
+          })
+        );
+      })
+    );
   }
 }
