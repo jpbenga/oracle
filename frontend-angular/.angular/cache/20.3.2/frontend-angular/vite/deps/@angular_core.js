@@ -49,6 +49,7 @@ import {
   ENVIRONMENT_INITIALIZER,
   EffectScheduler,
   ElementRef,
+  ElementRegistry,
   EmbeddedViewRef,
   EnvironmentInjector,
   ErrorHandler,
@@ -161,7 +162,6 @@ import {
   afterEveryRender,
   afterNextRender,
   afterRenderEffect,
-  allLeavingAnimations,
   allowSanitizationBypassAndThrow,
   annotateForHydration,
   asNativeElements,
@@ -210,6 +210,7 @@ import {
   formatRuntimeError,
   forwardRef,
   generateStandaloneInDeclarationsError,
+  getAnimationElementRemovalRegistry,
   getAsyncClassMetadataFn,
   getClosestComponentName,
   getComponentDef,
@@ -316,6 +317,7 @@ import {
   ɵsetUnknownElementStrictMode,
   ɵsetUnknownPropertyStrictMode,
   ɵunwrapWritableSignal,
+  ɵɵAnimationsFeature,
   ɵɵCopyDefinitionFeature,
   ɵɵExternalStylesFeature,
   ɵɵHostDirectivesFeature,
@@ -494,9 +496,9 @@ import {
   ɵɵvalidateIframeAttribute,
   ɵɵviewQuery,
   ɵɵviewQuerySignal
-} from "./chunk-IFESD5NC.js";
-import "./chunk-XYFQ7QOX.js";
+} from "./chunk-FJ6DA6IA.js";
 import "./chunk-BZLT2HVW.js";
+import "./chunk-XYFQ7QOX.js";
 import "./chunk-QJQPERGE.js";
 import "./chunk-5K356HEJ.js";
 export {
@@ -673,6 +675,7 @@ export {
   DeferBlockState as ɵDeferBlockState,
   ENABLE_ROOT_COMPONENT_BOOTSTRAP as ɵENABLE_ROOT_COMPONENT_BOOTSTRAP,
   EffectScheduler as ɵEffectScheduler,
+  ElementRegistry as ɵElementRegistry,
   Framework as ɵFramework,
   HydrationStatus as ɵHydrationStatus,
   IMAGE_CONFIG as ɵIMAGE_CONFIG,
@@ -720,7 +723,6 @@ export {
   ZONELESS_ENABLED as ɵZONELESS_ENABLED,
   _sanitizeHtml as ɵ_sanitizeHtml,
   _sanitizeUrl as ɵ_sanitizeUrl,
-  allLeavingAnimations as ɵallLeavingAnimations,
   allowSanitizationBypassAndThrow as ɵallowSanitizationBypassAndThrow,
   annotateForHydration as ɵannotateForHydration,
   ɵassertType,
@@ -750,6 +752,7 @@ export {
   flushModuleScopingQueueAsMuchAsPossible as ɵflushModuleScopingQueueAsMuchAsPossible,
   formatRuntimeError as ɵformatRuntimeError,
   generateStandaloneInDeclarationsError as ɵgenerateStandaloneInDeclarationsError,
+  getAnimationElementRemovalRegistry as ɵgetAnimationElementRemovalRegistry,
   getAsyncClassMetadataFn as ɵgetAsyncClassMetadataFn,
   getClosestComponentName as ɵgetClosestComponentName,
   getComponentDef as ɵgetComponentDef,
@@ -817,6 +820,7 @@ export {
   withEventReplay as ɵwithEventReplay,
   withI18nSupport as ɵwithI18nSupport,
   withIncrementalHydration as ɵwithIncrementalHydration,
+  ɵɵAnimationsFeature,
   ɵɵCopyDefinitionFeature,
   ɵɵExternalStylesFeature,
   FactoryTarget as ɵɵFactoryTarget,

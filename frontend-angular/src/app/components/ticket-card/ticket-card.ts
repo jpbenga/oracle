@@ -13,4 +13,13 @@ import { MarketTranslatePipe } from '@app/pipes/market-translate.pipe';
 })
 export class TicketCard {
   @Input() ticket!: Ticket;
+  objectKeys = Object.keys;
+
+  getTrancheKey(score: number): string {
+    if (score >= 90) return "90-100";
+    if (score >= 80) return "80-89";
+    if (score >= 70) return "70-79";
+    if (score >= 60) return "60-69";
+    return "0-59";
+  }
 }

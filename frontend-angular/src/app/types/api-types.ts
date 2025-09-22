@@ -27,39 +27,34 @@ export interface PredictionsApiResponse {
 // --- Tickets (de tickets_du_jour.json) ---
 
 export interface Bet {
-  id: string;
-  league: string;
+  fixtureId: number;
   matchLabel: string;
-  homeTeam: string;
-  awayTeam: string;
-  homeLogo: string;
-  awayLogo: string;
-  date: string;
-  time: string;
+  home_team: { name: string; logo: string; };
+  away_team: { name: string; logo: string; };
+  league: { name: string; country: string; logo: string; };
+  matchDate: string; // ISOString
   market: string;
   score: number;
-  odd: number;
-  isEarlySeason: boolean;
-  expectedValue: number;
-  result?: 'Win' | 'Loss' | 'Pending';
+  odd: number | null;
+  bookmaker: string | null;
+  market_performance: { [tranche: string]: { success: number; total: number; } };
+  status: string;
+  result: string | null;
 }
 
 export interface Ticket {
-  id: string;
-  date: string;
-  bets: Bet[];
+  title: string;
   totalOdd: number;
-  title: "The Oracle's Choice" | "The Agent's Play" | "The Red Pill";
-  status: 'won' | 'lost' | 'pending';
+  date: string; // YYYY-MM-DD
+  status: string;
+  bets: Bet[];
 }
 
 // La réponse de l'API pour les tickets est un objet avec les dates comme clés,
 // puis les titres comme sous-clés.
 export interface TicketsApiResponse {
   [date: string]: {
-    "The Oracle's Choice"?: Ticket[];
-    "The Agent's Play"?: Ticket[];
-    "The Red Pill"?: Ticket[];
+    [title: string]: Ticket[];
   };
 }
 

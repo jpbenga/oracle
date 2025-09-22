@@ -2,7 +2,7 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TicketCard } from '../ticket-card/ticket-card';
-import { TicketsApiResponse } from '../../types/api-types';
+import { Ticket, TicketsApiResponse } from '../../types/api-types';
 import { EmptyStateComponent } from '../empty-state/empty-state.component';
 
 @Component({
@@ -15,53 +15,45 @@ import { EmptyStateComponent } from '../empty-state/empty-state.component';
 export class TicketsList {
   @Input() ticketsData: TicketsApiResponse | null = null;
   @Input() selectedDayOffset: number = 0;
-  
-  objectKeys = Object.keys;
 
   get selectedDayKey(): string {
     const date = new Date();
     date.setDate(date.getDate() + this.selectedDayOffset);
-    // Correction pour correspondre au format YYYY-MM-DD
     return date.toISOString().split('T')[0];
   }
 
-  get ticketsForSelectedDay() {
+  private get ticketsForSelectedDay(): Ticket[] {
     if (!this.ticketsData) {
-      return null;
+      return [];
     }
-    return this.ticketsData[this.selectedDayKey];
+    const dayData = this.ticketsData[this.selectedDayKey];
+    if (!dayData) {
+      return [];
+    }
+    return Object.values(dayData).flat();
+  }
+
+  private calculateTicketScore(ticket: Ticket): number {
+    if (!ticket.bets || ticket.bets.length === 0) {
+      return 0;
+    }
+    const totalScore = ticket.bets.reduce((acc, bet) => acc + bet.score, 0);
+    return totalScore / ticket.bets.length;
+  }
+
+  get sortedTickets(): Ticket[] {
+    return this.ticketsForSelectedDay.sort((a, b) => this.calculateTicketScore(b) - this.calculateTicketScore(a));
+  }
+
+  get oraclesChoice(): Ticket | null {
+    return this.sortedTickets.length > 0 ? this.sortedTickets[0] : null;
+  }
+
+  get otherTickets(): Ticket[] {
+    return this.sortedTickets.slice(1);
   }
 
   get areTicketsAvailable(): boolean {
-    const tickets = this.ticketsForSelectedDay;
-    if (!tickets) return false;
-    
-    const oraclesChoice = tickets["The Oracle's Choice"];
-    const agentsPlay = tickets["The Agent's Play"];
-    const redPill = tickets["The Red Pill"];
-
-    return !!(oraclesChoice && oraclesChoice.length > 0) ||
-           !!(agentsPlay && agentsPlay.length > 0) ||
-           !!(redPill && redPill.length > 0);
-  }
-
-  get oraclesChoice() {
-    const tickets = this.ticketsForSelectedDay;
-    return tickets && tickets["The Oracle's Choice"] ? tickets["The Oracle's Choice"][0] : null;
-  }
-
-  get otherTickets() {
-    const tickets = this.ticketsForSelectedDay;
-    if (!tickets) {
-      return [];
-    }
-    const otherTickets = [];
-    if (tickets["The Agent's Play"]) {
-      otherTickets.push(...tickets["The Agent's Play"]);
-    }
-    if (tickets["The Red Pill"]) {
-      otherTickets.push(...tickets["The Red Pill"]);
-    }
-    return otherTickets;
+    return this.ticketsForSelectedDay.length > 0;
   }
 }

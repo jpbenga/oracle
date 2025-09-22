@@ -89,15 +89,15 @@ export class Dashboard implements OnInit {
       })
     ).subscribe(data => {
       if (data && data.length > 0) {
-        this.ticketsData = {
-          [date]: (data || []).reduce((acc, ticket) => {
-            const title = ticket.title;
-            if (!acc[title]) {
-              acc[title] = [];
+        const ticketsByTitle: { [title: string]: Ticket[] } = {};
+        (data || []).forEach(ticket => {
+            if (!ticketsByTitle[ticket.title]) {
+                ticketsByTitle[ticket.title] = [];
             }
-            acc[title].push(ticket);
-            return acc;
-          }, {} as { [key in Ticket['title']]?: Ticket[] })
+            ticketsByTitle[ticket.title].push(ticket);
+        });
+        this.ticketsData = {
+            [date]: ticketsByTitle
         };
       } else {
         this.ticketsData = {};

@@ -12,27 +12,54 @@
     <div *ngFor="let bet of ticket.bets; let isLast = last">
       <div class="py-3">
         <!-- Match Info -->
-        <div class="text-xs text-gray-400 mb-2">{{ bet.league }}</div>
+        <div class="text-xs text-gray-400 mb-2">{{ bet.league.name }}</div>
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-2">
-            <img [src]="bet.homeLogo" class="w-5 h-5" alt="{{ bet.homeTeam }} logo">
-            <span class="font-semibold">{{ bet.homeTeam }}</span>
+            <img [src]="bet.home_team.logo" class="w-5 h-5" alt="{{ bet.home_team.name }} logo">
+            <span class="font-semibold">{{ bet.home_team.name }}</span>
           </div>
           <span class="text-gray-500">vs</span>
           <div class="flex items-center gap-2">
-            <span class="font-semibold">{{ bet.awayTeam }}</span>
-            <img [src]="bet.awayLogo" class="w-5 h-5" alt="{{ bet.awayTeam }} logo">
+            <span class="font-semibold">{{ bet.away_team.name }}</span>
+            <img [src]="bet.away_team.logo" class="w-5 h-5" alt="{{ bet.away_team.name }} logo">
           </div>
         </div>
+        <div class="text-xs text-gray-400 mb-2">{{ bet.matchDate | date:'dd/MM/yyyy HH:mm' }}</div>
 
         <!-- Bet Details -->
         <div class="bg-[#0A0A0A] p-2 rounded-md text-center">
           <div class="text-sm text-gray-300">{{ bet.market | marketTranslate }}</div>
           <div class="flex items-center justify-center gap-4">
-            <span class="font-mono font-bold text-white">@ {{ bet.odd.toFixed(2) }}</span>
+            <span class="font-mono font-bold text-white">@ {{ bet.odd?.toFixed(2) }}</span>
+            <span class="text-sm text-gray-400">{{ bet.bookmaker }}</span>
             <span class="text-sm text-[#00FF41]">Confiance: {{ bet.score.toFixed(0) }}%</span>
           </div>
         </div>
+
+        <!-- Market Performance -->
+        <details class="text-xs mt-2">
+          <summary class="cursor-pointer text-gray-400">Performance du marché</summary>
+          <div class="p-2 bg-[#0A0A0A] rounded-md mt-1">
+            <table class="w-full text-left">
+              <thead>
+                <tr class="text-gray-300">
+                  <th>Tranche</th>
+                  <th>Succès</th>
+                  <th>Total</th>
+                  <th>Taux</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let tranche of objectKeys(bet.market_performance)" [ngClass]="{'highlight-tranche': getTrancheKey(bet.score) === tranche}">
+                  <td>{{ tranche }}</td>
+                  <td>{{ bet.market_performance[tranche].success }}</td>
+                  <td>{{ bet.market_performance[tranche].total }}</td>
+                  <td>{{ (bet.market_performance[tranche].success / bet.market_performance[tranche].total * 100).toFixed(0) }}%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
       </div>
       <!-- Divider -->
       <hr *ngIf="!isLast" class="border-[#222]">
