@@ -39,7 +39,7 @@ export class ApiService {
   }
 
   getMonthlyOracleTickets(selectedDayOffset: number): Observable<Ticket[]> {
-    return this.http.post<{data: Ticket[]}>(`${this.baseUrl}/getMonthlyOracleTickets`, { data: { selectedDayOffset } })
+    return this.http.post<{data: Ticket[]}>(`${this.baseUrl}`, { data: { selectedDayOffset } })
       .pipe(map(response => response.data));
   }
 
