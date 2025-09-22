@@ -41,7 +41,7 @@ function determineResultsFromFixture(fixture) {
     return results;
 }
 
-async function generateHtmlReport(reports) {
+async function generateHtmlReport(executionId, results) {
     const css = `
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
         h1, h2, h3 { color: #bb86fc; border-bottom: 2px solid #373737; padding-bottom: 10px; }
@@ -56,78 +56,83 @@ async function generateHtmlReport(reports) {
     `;
     let body = `<h1>Rapport de Vérification des Résultats</h1>`;
 
-    if (Object.keys(reports).length === 0) {
-        body += `<p>Aucun rapport de prédiction à afficher.</p>`;
+    if (results.length === 0) {
+        body += `<p>Aucun résultat à afficher pour l\'exécution : ${executionId}.</p>`;
+        return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Rapport de Vérification</title><style>${css}</style></head><body>${body}</body></html>`;
     }
 
-    for (const executionId in reports) {
-        const report = reports[executionId];
-        const summary = report.summary;
-        const totalProcessed = summary.won + summary.lost;
-        const successRate = totalProcessed > 0 ? ((summary.won / totalProcessed) * 100).toFixed(2) : 0;
+    const wonCount = results.filter(r => r.result === 'WON').length;
+    const lostCount = results.filter(r => r.result === 'LOST').length;
+    const pendingCount = results.filter(r => r.result !== 'WON' && r.result !== 'LOST').length;
+    const totalProcessed = wonCount + lostCount;
+    const successRate = totalProcessed > 0 ? ((wonCount / totalProcessed) * 100).toFixed(2) : 0;
 
-        const allResults = await firestoreService.getReportResults(executionId);
+    const allPredictions = await firestoreService.getPredictionsFromDateRange(new Date(new Date().setDate(new Date().getDate() - 2)), new Date());
+    const predictionDateMap = new Map(allPredictions.map(p => [p.id, p.matchDate]));
 
-        body += `
-            <div class="report-container">
-                <h2>Rapport pour l'exécution : ${executionId.substring(0, 20)}...</h2>
-                <div class="summary">
-                    <span>Total: ${summary.total}</span>
-                    <span class="status-WON">Gagnés: ${summary.won}</span>
-                    <span class="status-LOST">Perdus: ${summary.lost}</span>
-                    <span>En attente: ${summary.pending}</span>
-                    <span><b>Taux de réussite: ${successRate}%</b></span>
-                </div>`;
+    body += `
+        <div class="report-container">
+            <h2>Rapport pour l'exécution du jour</h2>
+            <div class="summary">
+                <span>Total traité: ${results.length}</span>
+                <span class="status-WON">Gagnés: ${wonCount}</span>
+                <span class="status-LOST">Perdus: ${lostCount}</span>
+                <span>En attente: ${pendingCount}</span>
+                <span><b>Taux de réussite (sur terminés): ${successRate}%</b></span>
+            </div>`;
 
-        const resultsByLeague = allResults.reduce((acc, res) => {
-            const league = res.leagueName || 'Inconnue';
-            if (!acc[league]) acc[league] = [];
-            acc[league].push(res);
-            return acc;
-        }, {});
+    const resultsByLeague = results.reduce((acc, res) => {
+        const league = res.leagueName || 'Inconnue';
+        if (!acc[league]) acc[league] = [];
+        acc[league].push(res);
+        return acc;
+    }, {});
 
-        for (const league in resultsByLeague) {
-            body += `<h3>${league}</h3>
-                     <table>
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Date</th>
-                                <th>Match</th>
-                                <th>Marché</th>
-                                <th>Confiance</th>
-                                <th>Score Final</th>
-                                <th>Résultat</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
-            
-            const sortedResults = resultsByLeague[league].sort((a, b) => {
-                if (a.matchDate < b.matchDate) return -1;
-                if (a.matchDate > b.matchDate) return 1;
-                if (a.matchLabel < b.matchLabel) return -1;
-                if (a.matchLabel > b.matchLabel) return 1;
-                return 0;
-            });
+    let globalCounter = 1;
+    for (const league in resultsByLeague) {
+        body += `<h3>${league}</h3>
+                 <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Date</th>
+                            <th>Match</th>
+                            <th>Marché</th>
+                            <th>Confiance</th>
+                            <th>Score Final</th>
+                            <th>Résultat</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        
+        const sortedResults = resultsByLeague[league].sort((a, b) => {
+            const dateA = a.matchDate || predictionDateMap.get(a.predictionId);
+            const dateB = b.matchDate || predictionDateMap.get(b.predictionId);
+            if (dateA < dateB) return -1;
+            if (dateA > dateB) return 1;
+            if (a.matchLabel < b.matchLabel) return -1;
+            if (a.matchLabel > b.matchLabel) return 1;
+            return 0;
+        });
 
-            sortedResults.forEach((res, index) => {
-                const matchDate = res.matchDate ? new Date(res.matchDate).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'N/A';
-                body += `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td>${matchDate}</td>
-                        <td>${res.matchLabel}</td>
-                        <td>${res.market}</td>
-                        <td>${res.score ? res.score.toFixed(2) + '%' : 'N/A'}</td>
-                        <td>${res.finalScore ? `${res.finalScore.home} - ${res.finalScore.away}` : '-'}</td>
-                        <td class="status-${res.result}">${res.result}</td>
-                    </tr>
-                `;
-            });
-            body += `</tbody></table>`;
-        }
-        body += `</div>`;
+        sortedResults.forEach(res => {
+            const matchDateValue = res.matchDate || predictionDateMap.get(res.predictionId);
+            const matchDate = matchDateValue ? new Date(matchDateValue).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'N/A';
+            body += `
+                <tr>
+                    <td>${globalCounter++}</td>
+                    <td>${matchDate}</td>
+                    <td>${res.matchLabel}</td>
+                    <td>${res.market}</td>
+                    <td>${res.score ? res.score.toFixed(2) + '%' : 'N/A'}</td>
+                    <td>${res.finalScore ? `${res.finalScore.home} - ${res.finalScore.away}` : '-'}</td>
+                    <td class="status-${res.result}">${res.result}</td>
+                </tr>
+            `;
+        });
+        body += `</tbody></table>`;
     }
+    body += `</div>`;
 
     return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Rapport de Vérification</title><style>${css}</style></head><body>${body}</body></html>`;
 }
@@ -136,46 +141,33 @@ async function generateHtmlReport(reports) {
 functions.http('resultsChecker', async (req, res) => {
     console.log(chalk.blue.bold("--- Démarrage du Job de Vérification des Résultats ---"));
 
-    const latestRun = await firestoreService.getLatestBacktestRun();
-    if (!latestRun) {
-        console.log(chalk.yellow("Aucun cycle d'exécution (backtest_run) trouvé."));
-        const html = await generateHtmlReport({});
+    // Get predictions from the last 48 hours
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const allRecentPredictions = await firestoreService.getPredictionsFromDateRange(yesterday, today);
+    if (!allRecentPredictions || allRecentPredictions.length === 0) {
+        console.log(chalk.yellow("Aucune prédiction récente à vérifier."));
+        const html = await generateHtmlReport('Aucune prédiction récente', []);
         res.status(200).send(html);
         return;
     }
-    const executionId = latestRun.executionId;
-    console.log(chalk.cyan(`Ciblage du dernier cycle d'exécution : ${executionId}`));
+    
+    console.log(chalk.white.bold(`   -> ${allRecentPredictions.length} prédiction(s) récente(s) trouvée(s).`));
 
-    let report = await firestoreService.getPredictionReport(executionId);
-    
-    if (report && report.status === 'COMPLETED') {
-        console.log(chalk.green.bold(`Le rapport pour ${executionId} est déjà complet.`));
-        const finalHtml = await generateHtmlReport({ [executionId]: report });
-        res.status(200).send(finalHtml);
-        return;
-    }
-    
-    const allPredictionsForRun = await firestoreService.getPredictionsForRun(executionId);
-    console.log(chalk.white.bold(`   -> ${allPredictionsForRun.length} prédiction(s) trouvée(s) pour ce cycle.`));
-    
-    if (!report) {
-        report = {
-            executionId: executionId,
-            createdAt: new Date(),
-            status: 'PROCESSING',
-            summary: { total: allPredictionsForRun.length, won: 0, lost: 0, pending: allPredictionsForRun.length },
-        };
-    }
-    
-    const existingResults = await firestoreService.getReportResults(executionId);
-    const processedPredictionIds = new Set(existingResults.filter(r => r.result === 'WON' || r.result === 'LOST').map(r => r.predictionId));
+    // This is a placeholder for a proper reporting mechanism if needed in the future
+    const executionId = `results-check-${today.toISOString().split('T')[0]}`;
 
-    const predictionsToProcess = allPredictionsForRun.filter(p => !processedPredictionIds.has(p.id));
+    const existingResults = await firestoreService.getReportResults(executionId); // This might need adjustment
+    const processedPredictionIds = new Set(existingResults.map(r => r.predictionId));
+
+    const predictionsToProcess = allRecentPredictions.filter(p => !processedPredictionIds.has(p.id));
     
     if (predictionsToProcess.length === 0) {
-        console.log(chalk.gray(`Toutes les prédictions pour ce cycle ont déjà un résultat.`));
-        const finalHtml = await generateHtmlReport({ [executionId]: report });
-        res.status(200).send(finalHtml);
+        console.log(chalk.gray(`Toutes les prédictions récentes ont déjà un résultat.`));
+        const html = await generateHtmlReport(executionId, existingResults);
+        res.status(200).send(html);
         return;
     }
 

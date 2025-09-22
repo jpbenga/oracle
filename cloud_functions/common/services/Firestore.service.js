@@ -54,6 +54,18 @@ class FirestoreService {
         }
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
+
+    async getPredictionsFromDateRange(startDate, endDate) {
+        const snapshot = await this.predictionsCollection
+            .where('matchDate', '>=', startDate.toISOString())
+            .where('matchDate', '<=', endDate.toISOString())
+            .get();
+        
+        if (snapshot.empty) {
+            return [];
+        }
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
     
     async saveTicket(ticketData) {
         return this.ticketsCollection.add(ticketData);
