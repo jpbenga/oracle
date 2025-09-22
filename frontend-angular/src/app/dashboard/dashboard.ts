@@ -40,18 +40,15 @@ export class Dashboard implements OnInit {
   objectKeys = Object.keys;
 
   ngOnInit(): void {
-    // this.loadInitialStats();
-    const date = this.getDateFromOffset(0);
-    this.loadDataForDate(date);
+    this.loadDataForDate(this.getDateFromOffset(this.selectedDayOffset));
+    this.loadSimulatorData();
   }
 
-  // loadInitialStats(): void {
-  //   this.apiService.getDashboardStats().subscribe((response: any) => {
-  //     const stats = response.data;
-  //     this.sevenDayRate = stats.sevenDayRate;
-  //     this.historicalTickets = stats.historicalTickets;
-  //   });
-  // }
+  loadSimulatorData(): void {
+    this.apiService.getMonthlyOracleTickets(this.selectedDayOffset).subscribe((tickets: Ticket[]) => {
+      this.historicalTickets = tickets;
+    });
+  }
 
   openRawData(): void {
     this.showRawData = true;
@@ -106,8 +103,8 @@ export class Dashboard implements OnInit {
   
   handleDaySelect(offset: number): void {
     this.selectedDayOffset = offset;
-    const date = this.getDateFromOffset(offset);
-    this.loadDataForDate(date);
+    this.loadDataForDate(this.getDateFromOffset(offset));
+    this.loadSimulatorData();
   }
 
   getDateFromOffset(offset: number): string {

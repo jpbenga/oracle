@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Observable, of, combineLatest } from 'rxjs';
 import { switchMap, map } from 'rxjs/operators';
 import { Ticket, ShortlistResponse, Prediction, PredictionReport, PredictionResult } from '../types/api-types';
@@ -9,6 +10,8 @@ import { Firestore, collection, query, where, onSnapshot, DocumentData, Collecti
 })
 export class ApiService {
   private firestore: Firestore = inject(Firestore);
+  private http: HttpClient = inject(HttpClient);
+  private baseUrl = 'https://get-monthly-oracle-tickets-182845783611.europe-west1.run.app'; // Assumed base URL
 
   constructor() { }
 
@@ -33,6 +36,11 @@ export class ApiService {
   getTickets(date: string): Observable<Ticket[]> {
     const ticketsCollection = collection(this.firestore, 'tickets') as CollectionReference<DocumentData>;
     return this.createRealtimeObservable<Ticket>(ticketsCollection, date);
+  }
+
+  getMonthlyOracleTickets(selectedDayOffset: number): Observable<Ticket[]> {
+    return this.http.post<{data: Ticket[]}>(`${this.baseUrl}/getMonthlyOracleTickets`, { data: { selectedDayOffset } })
+      .pipe(map(response => response.data));
   }
 
   getShortlist(date: Date): Observable<ShortlistResponse> {

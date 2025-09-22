@@ -4,8 +4,37 @@
         <span class="text-xs font-mono text-[#666]">[SYSTEM]</span>
         <span>THE ARCHITECT'S SIMULATION</span>
       </h2>
+      <button (click)="toggleDetailedView()" class="text-sm text-[#00FF41] hover:underline">
+        {{ showDetailedView ? 'Cacher le bilan' : 'Voir le bilan détaillé' }}
+      </button>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
       <app-character-card *ngFor="let character of characters" [character]="character"></app-character-card>
+    </div>
+
+    <div *ngIf="showDetailedView" class="mt-8">
+        <h3 class="text-lg font-bold text-white mb-4">Bilan détaillé du mois</h3>
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-[#111] border border-[#222]">
+                <thead>
+                    <tr class="border-b border-[#222]">
+                        <th class="px-4 py-2 text-left text-sm font-medium text-[#666]">Date</th>
+                        <th class="px-4 py-2 text-left text-sm font-medium text-[#666]">Statut</th>
+                        <th class="px-4 py-2 text-right text-sm font-medium text-[#666]">Cote</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let ticket of monthlyOracleTickets" class="border-b border-[#222]">
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-white">{{ ticket.date | date:'dd/MM/yyyy' }}</td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm">
+                            <span [ngClass]="{'text-green-500': ticket.status === 'won', 'text-red-500': ticket.status === 'lost'}">
+                                {{ ticket.status === 'won' ? 'Gagné' : 'Perdu' }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-2 whitespace-nowrap text-sm text-right text-white">{{ ticket.totalOdd | number:'1.2-2' }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
   </div>

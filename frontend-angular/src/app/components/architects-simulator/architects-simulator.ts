@@ -1,16 +1,7 @@
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Ticket } from '../../types/api-types';
+import { Ticket, Character } from '../../types/api-types';
 import { CharacterCard } from '../character-card/character-card';
-
-interface Character {
-  name: string;
-  goal: number;
-  bankroll: number;
-  initialBankroll: number;
-  progress: number;
-  performance: number;
-}
 
 @Component({
   selector: 'app-architects-simulator',
@@ -24,13 +15,15 @@ export class ArchitectsSimulator implements OnChanges {
   @Input() selectedDayOffset: number = 0;
 
   characters: Character[] = [];
+  monthlyOracleTickets: Ticket[] = [];
+  showDetailedView = false;
 
   private initialCharacters: Character[] = [
-    { name: 'Cypher', goal: 1, bankroll: 20, initialBankroll: 20, progress: 0, performance: 0 },
-    { name: 'Morpheus', goal: 2, bankroll: 20, initialBankroll: 20, progress: 0, performance: 0 },
-    { name: 'Trinity', goal: 3, bankroll: 20, initialBankroll: 20, progress: 0, performance: 0 },
-    { name: 'Neo', goal: 4, bankroll: 20, initialBankroll: 20, progress: 0, performance: 0 },
-    { name: "L'Oracle", goal: 5, bankroll: 20, initialBankroll: 20, progress: 0, performance: 0 }
+    { name: 'Cypher', goal: 1, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
+    { name: 'Morpheus', goal: 2, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
+    { name: 'Trinity', goal: 3, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
+    { name: 'Neo', goal: 4, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
+    { name: "L'Oracle", goal: 5, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 }
   ];
 
   constructor() {
@@ -43,12 +36,31 @@ export class ArchitectsSimulator implements OnChanges {
     }
   }
 
+  toggleDetailedView(): void {
+    this.showDetailedView = !this.showDetailedView;
+  }
+
   private runSimulation(): void {
     let simulatedCharacters: Character[] = JSON.parse(JSON.stringify(this.initialCharacters));
 
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + this.selectedDayOffset);
+
+    const firstDayOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+    const lastDayOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+    lastDayOfMonth.setHours(23, 59, 59, 999);
+
     const sortedTickets = this.historicalTickets
-      .filter(t => t.title === "The Oracle's Choice" && (t.status === 'won' || t.status === 'lost'))
+      .filter(t => {
+        const ticketDate = new Date(t.date);
+        return t.title === "The Oracle's Choice" &&
+               (t.status === 'won' || t.status === 'lost') &&
+               ticketDate >= firstDayOfMonth &&
+               ticketDate <= lastDayOfMonth;
+      })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    this.monthlyOracleTickets = sortedTickets;
 
     for (const oracleTicket of sortedTickets) {
       const ticketDate = new Date(oracleTicket.date);
@@ -72,6 +84,7 @@ export class ArchitectsSimulator implements OnChanges {
           char.performance -= char.bankroll;
           char.bankroll = char.initialBankroll;
           char.progress = 0;
+          char.losses++;
         }
       });
     }

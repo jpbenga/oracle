@@ -34,8 +34,18 @@ export interface PredictionReport {
 }
 
 export interface PredictionResult {
-  predictionId: string;
-  result: 'WON' | 'LOST' | 'UNKNOWN';
+    predictionId: string;
+    result: 'WON' | 'LOST';
+}
+
+export interface Character {
+  name: string;
+  goal: number;
+  bankroll: number;
+  initialBankroll: number;
+  progress: number; // Represents wins
+  losses: number;
+  performance: number;
 }
 
 

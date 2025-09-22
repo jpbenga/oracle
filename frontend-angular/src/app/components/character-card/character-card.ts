@@ -1,13 +1,6 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-
-export interface Character {
-  name: string;
-  goal: number;
-  bankroll: number;
-  progress: number;
-  performance: number;
-}
+import { Character } from '../../types/api-types';
 
 @Component({
   selector: 'app-character-card',
