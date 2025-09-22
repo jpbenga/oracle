@@ -91,6 +91,7 @@ async function generateHtmlReport(reports) {
                      <table>
                         <thead>
                             <tr>
+                                <th>Date</th>
                                 <th>Match</th>
                                 <th>Marché</th>
                                 <th>Confiance</th>
@@ -101,16 +102,18 @@ async function generateHtmlReport(reports) {
                         <tbody>`;
             
             const sortedResults = resultsByLeague[league].sort((a, b) => {
+                if (a.matchDate < b.matchDate) return -1;
+                if (a.matchDate > b.matchDate) return 1;
                 if (a.matchLabel < b.matchLabel) return -1;
                 if (a.matchLabel > b.matchLabel) return 1;
-                if (a.market < b.market) return -1;
-                if (a.market > b.market) return 1;
                 return 0;
             });
 
             sortedResults.forEach(res => {
+                const matchDate = new Date(res.matchDate).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
                 body += `
                     <tr>
+                        <td>${matchDate}</td>
                         <td>${res.matchLabel}</td>
                         <td>${res.market}</td>
                         <td>${res.score ? res.score.toFixed(2) + '%' : 'N/A'}</td>
@@ -150,22 +153,22 @@ functions.http('resultsChecker', async (req, res) => {
         return;
     }
     
-    const predictionsForRun = await firestoreService.getPredictionsForRun(executionId);
-    console.log(chalk.white.bold(`   -> ${predictionsForRun.length} prédiction(s) trouvée(s) pour ce cycle.`));
+    const allPredictionsForRun = await firestoreService.getPredictionsForRun(executionId);
+    console.log(chalk.white.bold(`   -> ${allPredictionsForRun.length} prédiction(s) trouvée(s) pour ce cycle.`));
     
     if (!report) {
         report = {
             executionId: executionId,
             createdAt: new Date(),
             status: 'PROCESSING',
-            summary: { total: predictionsForRun.length, won: 0, lost: 0, pending: predictionsForRun.length },
+            summary: { total: allPredictionsForRun.length, won: 0, lost: 0, pending: allPredictionsForRun.length },
         };
     }
     
     const existingResults = await firestoreService.getReportResults(executionId);
-    const existingResultIds = new Set(existingResults.map(r => r.predictionId));
+    const processedPredictionIds = new Set(existingResults.filter(r => r.result === 'WON' || r.result === 'LOST').map(r => r.predictionId));
 
-    const predictionsToProcess = predictionsForRun.filter(p => !existingResultIds.has(p.id));
+    const predictionsToProcess = allPredictionsForRun.filter(p => !processedPredictionIds.has(p.id));
     
     if (predictionsToProcess.length === 0) {
         console.log(chalk.gray(`Toutes les prédictions pour ce cycle ont déjà un résultat.`));
@@ -200,6 +203,7 @@ functions.http('resultsChecker', async (req, res) => {
                 market: prediction.market,
                 score: prediction.score,
                 odd: prediction.odd,
+                matchDate: prediction.matchDate,
                 matchLabel: `${prediction.home_team.name} vs ${prediction.away_team.name}`,
                 leagueName: prediction.league.name, // Correction du chemin
                 finalScore: { home: fixture.goals.home, away: fixture.goals.away },

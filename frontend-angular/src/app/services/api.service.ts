@@ -39,8 +39,36 @@ export class ApiService {
   }
 
   getMonthlyOracleTickets(selectedDayOffset: number): Observable<Ticket[]> {
-    return this.http.post<{data: Ticket[]}>(`${this.baseUrl}`, { data: { selectedDayOffset } })
-      .pipe(map(response => response.data));
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() + selectedDayOffset);
+
+    const firstDayOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+    const lastDayOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+
+    const ticketsQuery = query(
+      collection(this.firestore, 'tickets'),
+      where('title', '==', "The Oracle's Choice"),
+      where('date', '>=', firstDayOfMonth.toISOString().split('T')[0]),
+      where('date', '<=', lastDayOfMonth.toISOString().split('T')[0])
+    );
+
+    return new Observable<Ticket[]>(observer => {
+      const unsubscribe = onSnapshot(ticketsQuery, (querySnapshot) => {
+        const tickets: Ticket[] = [];
+        querySnapshot.forEach((doc) => {
+          tickets.push({ id: doc.id, ...doc.data() } as unknown as Ticket);
+        });
+        // Sort by date ascending
+        const sortedTickets = tickets.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        observer.next(sortedTickets);
+      }, (error) => {
+        console.error("[ApiService] Error fetching monthly oracle tickets:", error);
+        observer.error(error);
+      });
+
+      // Unsubscribe when the observable is unsubscribed
+      return () => unsubscribe();
+    });
   }
 
   getShortlist(date: Date): Observable<ShortlistResponse> {
