@@ -2,11 +2,8 @@
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-xl font-bold text-[#00FF41] flex items-center gap-2">
         <span class="text-xs font-mono text-[#666]">[SYSTEM]</span>
-        <span>THE ARCHITECT'S SIMULATION</span>
+        <span>LA SIMULATION DE L'ARCHITECTE</span>
       </h2>
-      <button (click)="toggleDetailedView()" class="text-sm text-[#00FF41] hover:underline">
-        {{ showDetailedView ? 'Cacher le bilan' : 'Voir le bilan détaillé' }}
-      </button>
     </div>
 <div class="text-center mb-8">
   <button (click)="toggleHistory()" class="font-mono text-sm bg-[#111] border border-[#333] hover:bg-[#1a1a1a] text-white py-2 px-4 rounded-lg transition-colors">
@@ -23,30 +20,4 @@
 <div *ngIf="showHistory">
   <app-simulation-history></app-simulation-history>
 </div>
-
-    <div *ngIf="showDetailedView" class="mt-8">
-        <h3 class="text-lg font-bold text-white mb-4">Bilan détaillé du mois</h3>
-        <div class="overflow-x-auto">
-            <table class="min-w-full bg-[#111] border border-[#222]">
-                <thead>
-                    <tr class="border-b border-[#222]">
-                        <th class="px-4 py-2 text-left text-sm font-medium text-[#666]">Date</th>
-                        <th class="px-4 py-2 text-left text-sm font-medium text-[#666]">Statut</th>
-                        <th class="px-4 py-2 text-right text-sm font-medium text-[#666]">Cote</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr *ngFor="let ticket of monthlyOracleTickets" class="border-b border-[#222]">
-                        <td class="px-4 py-2 whitespace-nowrap text-sm text-white">{{ ticket.date | date:'dd/MM/yyyy' }}</td>
-                        <td class="px-4 py-2 whitespace-nowrap text-sm">
-                            <span [ngClass]="{'text-green-500': ticket.status === 'won', 'text-red-500': ticket.status === 'lost'}">
-                                {{ ticket.status === 'won' ? 'Gagné' : 'Perdu' }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-2 whitespace-nowrap text-sm text-right text-white">{{ ticket.totalOdd | number:'1.2-2' }}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
   </div>

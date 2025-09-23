@@ -1,16 +1,18 @@
 
 <div *ngIf="areTicketsAvailable; else noTickets">
   <div *ngIf="oraclesChoice" class="mb-8">
-    <h2 class="text-2xl font-bold text-center mb-4 text-green-400">The Oracle's Choice</h2>
+    <h2 class="text-2xl font-bold text-center mb-4 text-green-400">Le Choix de l'Oracle</h2>
     <div class="max-w-md mx-auto">
       <app-ticket-card [ticket]="oraclesChoice"></app-ticket-card>
     </div>
   </div>
 
   <div *ngIf="otherTickets.length > 0" class="mt-12">
-     <h3 class="text-xl font-bold text-center mb-4">Other Generated Tickets</h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <app-ticket-card *ngFor="let ticket of otherTickets" [ticket]="ticket"></app-ticket-card>
+     <h3 class="text-xl font-bold text-center mb-4">Autres Tickets Générés</h3>
+    <div class="flex flex-wrap justify-center gap-6">
+      <div *ngFor="let ticket of otherTickets" class="w-full max-w-md">
+        <app-ticket-card [ticket]="ticket"></app-ticket-card>
+      </div>
     </div>
   </div>
 </div>

@@ -4,7 +4,7 @@
     (selectDay)="handleDaySelect($event)">
   </app-day-selector>
 
-  <app-architects-simulator [historicalTickets]="historicalTickets" [selectedDayOffset]="selectedDayOffset"></app-architects-simulator>
+  <app-architects-simulator></app-architects-simulator>
   
   <div *ngIf="isLoading" class="text-center mt-8">
     <p class="text-lg">Chargement des données...</p>

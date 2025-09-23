@@ -12,8 +12,8 @@ export class DaySelector {
   @Input() selectedDayOffset: number = 0;
   @Output() selectDay = new EventEmitter<number>();
 
-  // Limiter les jours de J-6 à J+2 (total de 9 jours)
-  dayOffsets: number[] = Array.from({ length: 9 }, (_, i) => i - 6);
+  // Limiter les jours de J-6 à J+1 (total de 8 jours)
+  dayOffsets: number[] = Array.from({ length: 8 }, (_, i) => i - 6);
 
   getDateForOffset(offset: number): Date {
     const date = new Date();
@@ -41,8 +41,8 @@ export class DaySelector {
   }
 
   nextDay(): void {
-    // Mettre à jour la limite à J+2
-    if (this.selectedDayOffset < 2) {
+    // Mettre à jour la limite à J+1
+    if (this.selectedDayOffset < 1) {
       this.onSelectDay(this.selectedDayOffset + 1);
     }
   }

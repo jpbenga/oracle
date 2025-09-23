@@ -41,13 +41,6 @@ export class Dashboard implements OnInit {
 
   ngOnInit(): void {
     this.loadDataForDate(this.getDateFromOffset(this.selectedDayOffset));
-    this.loadSimulatorData();
-  }
-
-  loadSimulatorData(): void {
-    this.apiService.getMonthlyOracleTickets(this.selectedDayOffset).subscribe((tickets: Ticket[]) => {
-      this.historicalTickets = tickets;
-    });
   }
 
   openRawData(): void {
@@ -104,7 +97,6 @@ export class Dashboard implements OnInit {
   handleDaySelect(offset: number): void {
     this.selectedDayOffset = offset;
     this.loadDataForDate(this.getDateFromOffset(offset));
-    this.loadSimulatorData();
   }
 
   getDateFromOffset(offset: number): string {
