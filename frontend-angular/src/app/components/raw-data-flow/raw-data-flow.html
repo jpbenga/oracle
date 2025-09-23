@@ -39,33 +39,64 @@
                   <th class="p-2 text-left">CONF. ALGO</th>
                   <th class="p-2 text-left">COTE</th>
                   <th class="p-2 text-left">STATUT</th>
+                  <th class="p-2 text-left"></th>
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let item of shortlist.predictions" class="border-b border-[#111] hover:bg-[#0A0A0A]">
-                    <td class="p-2">
-                      <div>{{ item.matchLabel }}</div>
-                      <div class="text-xs text-gray-400">{{ item.league.name }} ({{ item.league.country }})</div>
-                      <div class="text-gray-500 text-xs">{{ item.matchDate | date:'dd/MM/yyyy HH:mm' }}</div>
+                <ng-container *ngFor="let item of shortlist.predictions">
+                  <tr class="border-b border-[#111] hover:bg-[#0A0A0A] cursor-pointer" (click)="toggleDetails(item.id)">
+                      <td class="p-2">
+                        <div>{{ item.matchLabel }}</div>
+                        <div class="text-xs text-gray-400">{{ item.league.name }} ({{ item.league.country }})</div>
+                        <div class="text-gray-500 text-xs">{{ item.matchDate | date:'dd/MM/yyyy HH:mm' }}</div>
+                      </td>
+                      <td class="p-2 text-[#00FF41]">{{ item.market | marketTranslate }}</td>
+                      <td class="p-2">{{ item.score.toFixed(0) }}%</td>
+                      <td class="p-2">{{ item.odd || '...' }}</td>
+                      <td class="p-2" [ngSwitch]="item.resultStatus">
+                        <ng-container *ngSwitchCase="'WON'">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                        </ng-container>
+                        <ng-container *ngSwitchCase="'LOST'">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </ng-container>
+                        <ng-container *ngSwitchCase="'IN_PROGRESS'">
+                          <div class="spinner spinner-sm"></div>
+                        </ng-container>
+                        <ng-container *ngSwitchDefault>
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.79 4 4s-1.79 4-4 4-4-1.79-4-4c0-1.105.448-2.09 1.172-2.828M12 18v.01" /></svg>
+                        </ng-container>
+                      </td>
+                      <td class="p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 transition-transform duration-200" [class.rotate-180]="expandedPredictionId === item.id" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                      </td>
+                  </tr>
+                  <tr *ngIf="expandedPredictionId === item.id" class="bg-[#0A0A0A]">
+                    <td colspan="6" class="p-2">
+                      <div class="p-2 bg-[#0A0A0A] rounded-md mt-1">
+                        <h4 class="text-gray-400 text-xs mb-2">Performance du marché</h4>
+                        <table class="w-full text-left">
+                          <thead>
+                            <tr class="text-gray-300">
+                              <th>Tranche</th>
+                              <th>Succès</th>
+                              <th>Total</th>
+                              <th>Taux</th>
+                            </tr>
+                          </thead>
+                          <tbody *ngIf="item.market_performance">
+                            <tr *ngFor="let tranche of objectKeys(item.market_performance)" [ngClass]="{'highlight-tranche': getTrancheKey(item.score) === tranche}">
+                              <td>{{ tranche }}</td>
+                              <td>{{ item.market_performance[tranche].success }}</td>
+                              <td>{{ item.market_performance[tranche].total }}</td>
+                              <td>{{ (item.market_performance[tranche].success / item.market_performance[tranche].total * 100).toFixed(0) }}%</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
                     </td>
-                    <td class="p-2 text-[#00FF41]">{{ item.market | marketTranslate }}</td>
-                    <td class="p-2">{{ item.score.toFixed(0) }}%</td>
-                    <td class="p-2">{{ item.odd || '...' }}</td>
-                    <td class="p-2" [ngSwitch]="item.resultStatus">
-                      <ng-container *ngSwitchCase="'WON'">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-                      </ng-container>
-                      <ng-container *ngSwitchCase="'LOST'">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                      </ng-container>
-                      <ng-container *ngSwitchCase="'IN_PROGRESS'">
-                        <div class="spinner spinner-sm"></div>
-                      </ng-container>
-                      <ng-container *ngSwitchDefault>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.79 4 4s-1.79 4-4 4-4-1.79-4-4c0-1.105.448-2.09 1.172-2.828M12 18v.01" /></svg>
-                      </ng-container>
-                    </td>
-                </tr>
+                  </tr>
+                </ng-container>
               </tbody>
             </table>
             <ng-template #empty>
