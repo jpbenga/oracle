@@ -1,0 +1,42 @@
+<div class="font-mono text-sm text-[#666] p-4">
+  <h3 class="text-lg font-bold text-center mb-6 text-[#00FF41]">ARCHIVES DES PERFORMANCES MENSUELLES</h3>
+
+  <div *ngIf="history$ | async as history; else loading" class="space-y-8">
+    <div *ngFor="let month of history" class="bg-[#0A0A0A] border border-[#222] rounded-lg p-4">
+      <h4 class="text-base font-bold text-white mb-3">Mois : {{ month.month }}</h4>
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse text-xs">
+          <thead class="text-[#666]">
+            <tr class="border-b border-[#222]">
+              <th class="p-2 text-left">PERSONNAGE</th>
+              <th class="p-2 text-right">PERFORMANCE</th>
+              <th class="p-2 text-right">BANKROLL FINALE</th>
+              <th class="p-2 text-right">PERTES</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let char of month.characters" class="border-b border-[#111]">
+              <td class="p-2 font-bold text-white">{{ char.name }}</td>
+              <td class="p-2 text-right" [ngClass]="char.performance > 0 ? 'text-green-400' : 'text-red-400'">
+                {{ char.performance.toFixed(2) }} €
+              </td>
+              <td class="p-2 text-right">{{ char.bankroll.toFixed(2) }} €</td>
+              <td class="p-2 text-right">{{ char.losses }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div *ngIf="history.length === 0" class="text-center p-8 text-[#666]">
+      <p>Aucun historique de simulation n'a encore été archivé.</p>
+      <p class="text-xs mt-2">Le premier bilan sera disponible à la fin du mois en cours.</p>
+    </div>
+  </div>
+
+  <ng-template #loading>
+    <div class="text-center p-8 text-[#666]">
+      <p>Chargement des archives...</p>
+    </div>
+  </ng-template>
+</div>

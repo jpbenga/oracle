@@ -61,3 +61,9 @@ export interface ShortlistResponse {
   report: PredictionReport | null;
   predictions: (Prediction & { resultStatus?: 'WON' | 'LOST' | 'UNKNOWN' | 'IN_PROGRESS' })[];
 }
+
+export interface SimulationHistory {
+  month: string; // e.g., 2025-09
+  generatedAt: string; // ISOString
+  characters: Character[];
+}

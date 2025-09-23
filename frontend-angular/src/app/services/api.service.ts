@@ -1,16 +1,41 @@
 import { Injectable, inject } from '@angular/core';
 import { Observable, of, combineLatest } from 'rxjs';
 import { switchMap, map } from 'rxjs/operators';
-import { Ticket, ShortlistResponse, Prediction, PredictionReport, PredictionResult } from '../types/api-types';
-import { Firestore, collection, query, where, onSnapshot, DocumentData, CollectionReference, doc } from '@angular/fire/firestore';
+import { Ticket, ShortlistResponse, Prediction, PredictionReport, PredictionResult, Character, SimulationHistory } from '../types/api-types';
+import { Firestore, collection, query, where, onSnapshot, DocumentData, CollectionReference, doc, orderBy } from '@angular/fire/firestore';
+import { FirestoreService } from './firestore.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ApiService {
   private firestore: Firestore = inject(Firestore);
+  private firestoreService = inject(FirestoreService);
 
   constructor() { }
+
+  getSimulationCharacters(): Observable<Character[]> {
+    return this.firestoreService.getCollection<Character>('simulation_characters');
+  }
+
+  getSimulationHistory(): Observable<SimulationHistory[]> {
+    const historyCollection = collection(this.firestore, 'simulation_history');
+    const q = query(historyCollection, orderBy('month', 'desc'));
+    
+    return new Observable<SimulationHistory[]>(observer => {
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const results: SimulationHistory[] = [];
+        querySnapshot.forEach((doc) => {
+          results.push(doc.data() as SimulationHistory);
+        });
+        observer.next(results);
+      }, (error) => {
+        observer.error(error);
+      });
+
+      return () => unsubscribe();
+    });
+  }
 
   private createRealtimeObservable<T>(ref: CollectionReference, date: string): Observable<T[]> {
     const q = query(ref, where("date", "==", date));
