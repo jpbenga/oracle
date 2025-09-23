@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { Character } from '../../types/api-types';
 import { CharacterCard } from '../character-card/character-card';
 import { ApiService } from '@app/services/api.service';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { SimulationHistoryComponent } from '../simulation-history/simulation-history.component';
 
 @Component({
@@ -17,13 +17,18 @@ export class ArchitectsSimulator implements OnInit {
   private apiService = inject(ApiService);
 
   characters$!: Observable<Character[]>;
-  showHistory = false;
+
+  private initialCharacters: Character[] = [
+    { name: 'Cypher', goal: 1, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
+    { name: 'Morpheus', goal: 2, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
+    { name: 'Trinity', goal: 3, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
+    { name: 'Neo', goal: 4, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
+    { name: "L'Oracle", goal: 5, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 }
+  ];
 
   ngOnInit(): void {
-    this.characters$ = this.apiService.getSimulationCharacters();
-  }
-
-  toggleHistory(): void {
-    this.showHistory = !this.showHistory;
+    this.characters$ = this.apiService.getSimulationCharacters().pipe(
+      map(characters => characters.length > 0 ? characters : this.initialCharacters)
+    );
   }
 }

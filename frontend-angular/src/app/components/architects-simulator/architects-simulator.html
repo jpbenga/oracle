@@ -5,19 +5,15 @@
         <span>LA SIMULATION DE L'ARCHITECTE</span>
       </h2>
     </div>
-<div class="text-center mb-8">
-  <button (click)="toggleHistory()" class="font-mono text-sm bg-[#111] border border-[#333] hover:bg-[#1a1a1a] text-white py-2 px-4 rounded-lg transition-colors">
-    {{ showHistory ? 'Voir la Simulation en Cours' : 'Voir l\'Historique des Performances' }}
-  </button>
-</div>
 
-<div *ngIf="!showHistory">
-  <div *ngIf="characters$ | async as characters" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-    <app-character-card *ngFor="let char of characters" [character]="char"></app-character-card>
-  </div>
-</div>
+    <!-- Character cards are now always visible -->
+    <div *ngIf="characters$ | async as characters" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
+      <app-character-card *ngFor="let char of characters" [character]="char"></app-character-card>
+    </div>
 
-<div *ngIf="showHistory">
-  <app-simulation-history></app-simulation-history>
+    <!-- Divider -->
+    <hr class="border-t-2 border-dashed border-[#222] my-8">
+
+    <!-- History is now always visible below -->
+    <app-simulation-history></app-simulation-history>
 </div>
-  </div>
