@@ -1,0 +1,68 @@
+/* 
+  ARCHITECTS SIMULATOR STYLES
+*/
+
+.first-card-wrapper {
+    position: relative;
+    z-index: 10;
+}
+
+.reveal-icon-container {
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #0A0A0A;
+    border-radius: 50%;
+    padding: 2px;
+    cursor: pointer;
+    z-index: 20;
+    transition: transform 0.3s ease;
+
+    svg {
+        color: #00FF41;
+    }
+
+    &:hover {
+        transform: translateX(-50%) scale(1.1);
+    }
+}
+
+// --- Mobile Stacked Layout --- 
+.cards-container:not(.grid) {
+    position: relative;
+    transition: height 0.7s cubic-bezier(0.645, 0.045, 0.355, 1);
+    // Adjusted height to be just enough for the first card + smaller glimpse
+    height: 215px;
+
+    .card-wrapper {
+        transition: transform 0.7s cubic-bezier(0.645, 0.045, 0.355, 1);
+        width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+    // --- Initial Stacked State (Not Expanded) ---
+    &:not(.expanded) {
+        .card-wrapper:nth-child(1) { z-index: 10; transform: translateY(0); }
+        .card-wrapper:nth-child(2) { z-index: 9; transform: translateY(4px); }
+        .card-wrapper:nth-child(3) { z-index: 8; transform: translateY(8px); }
+        .card-wrapper:nth-child(4) { z-index: 7; transform: translateY(12px); }
+        .card-wrapper:nth-child(5) { z-index: 6; transform: translateY(16px); }
+    }
+
+    // --- Expanded State ---
+    &.expanded {
+        // Height is 5 cards * ~190px card height.
+        height: 950px;
+
+        // Position each card directly under the previous one with no gap.
+        // Assumes card height of ~190px
+        .card-wrapper:nth-child(1) { transform: translateY(0px); }
+        .card-wrapper:nth-child(2) { transform: translateY(190px); }
+        .card-wrapper:nth-child(3) { transform: translateY(380px); }
+        .card-wrapper:nth-child(4) { transform: translateY(570px); }
+        .card-wrapper:nth-child(5) { transform: translateY(760px); }
+    }
+}

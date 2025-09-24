@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Character } from '../../types/api-types';
 import { CharacterCard } from '../character-card/character-card';
@@ -17,6 +17,13 @@ export class ArchitectsSimulator implements OnInit {
   private apiService = inject(ApiService);
 
   characters$!: Observable<Character[]>;
+  otherCharactersVisible = false;
+  isMobile = window.innerWidth < 768; // Tailwind's md breakpoint
+
+  @HostListener('window:resize', ['$event'])
+  onResize(event: any) {
+    this.isMobile = event.target.innerWidth < 768;
+  }
 
   private initialCharacters: Character[] = [
     { name: 'Cypher', goal: 1, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
@@ -30,5 +37,9 @@ export class ArchitectsSimulator implements OnInit {
     this.characters$ = this.apiService.getSimulationCharacters().pipe(
       map(characters => characters.length > 0 ? characters : this.initialCharacters)
     );
+  }
+
+  toggleMatrix(): void {
+    this.otherCharactersVisible = !this.otherCharactersVisible;
   }
 }

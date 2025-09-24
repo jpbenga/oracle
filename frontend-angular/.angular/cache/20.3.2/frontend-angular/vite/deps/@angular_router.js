@@ -1,7 +1,7 @@
 import {
   Title
-} from "./chunk-NMZETCVU.js";
-import "./chunk-JGYIXEYR.js";
+} from "./chunk-XQQCP4IQ.js";
+import "./chunk-TDPOIHRZ.js";
 import {
   HashLocationStrategy,
   LOCATION_INITIALIZED,
@@ -9,8 +9,8 @@ import {
   LocationStrategy,
   PathLocationStrategy,
   ViewportScroller
-} from "./chunk-4UV435T5.js";
-import "./chunk-CZW6QYGI.js";
+} from "./chunk-QEOQMU2D.js";
+import "./chunk-ZJ25XCV3.js";
 import {
   APP_BOOTSTRAP_LISTENER,
   ApplicationRef,
@@ -82,12 +82,12 @@ import {
   ɵɵloadQuery,
   ɵɵqueryRefresh,
   ɵɵsanitizeUrlOrResourceUrl
-} from "./chunk-FJ6DA6IA.js";
-import "./chunk-BZLT2HVW.js";
+} from "./chunk-IFESD5NC.js";
 import {
   defer,
   isObservable
 } from "./chunk-XYFQ7QOX.js";
+import "./chunk-BZLT2HVW.js";
 import {
   BehaviorSubject,
   ConnectableObservable,
@@ -4981,7 +4981,7 @@ var RouterLink = class _RouterLink {
   // TODO(atscott): Remove changes parameter in major version as a breaking change.
   ngOnChanges(changes) {
     if (ngDevMode && isUrlTree(this.routerLinkInput) && (this.fragment !== void 0 || this.queryParams || this.queryParamsHandling || this.preserveFragment || this.relativeTo)) {
-      throw new RuntimeError(4016, "Cannot configure queryParams or fragment when using a UrlTree as the routerLink input value.");
+      throw new RuntimeError(4017, "Cannot configure queryParams or fragment when using a UrlTree as the routerLink input value.");
     }
     if (this.isAnchorElement) {
       this.updateHref();
@@ -6011,7 +6011,7 @@ function mapToCanDeactivate(providers) {
 function mapToResolve(provider) {
   return (...params) => inject(provider).resolve(...params);
 }
-var VERSION = new Version("20.3.0");
+var VERSION = new Version("20.3.1");
 export {
   ActivatedRoute,
   ActivatedRouteSnapshot,
@@ -6098,7 +6098,7 @@ export {
 @angular/router/fesm2022/router_module.mjs:
 @angular/router/fesm2022/router.mjs:
   (**
-   * @license Angular v20.3.0
+   * @license Angular v20.3.1
    * (c) 2010-2025 Google LLC. https://angular.io/
    * License: MIT
    *)

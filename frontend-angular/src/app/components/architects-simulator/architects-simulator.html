@@ -6,13 +6,39 @@
       </h2>
     </div>
 
-    <!-- Character cards are now always visible -->
-    <div *ngIf="characters$ | async as characters" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mb-8">
-      <app-character-card *ngFor="let char of characters" [character]="char"></app-character-card>
-    </div>
+    <ng-container *ngIf="characters$ | async as characters">
+      <div class="cards-container"
+           [class.grid]="!isMobile"
+           [class.md:grid-cols-2]="!isMobile"
+           [class.lg:grid-cols-3]="!isMobile"
+           [class.xl:grid-cols-5]="!isMobile"
+           [class.gap-6]="!isMobile"
+           [class.expanded]="!isMobile || otherCharactersVisible">
+        
+        <div *ngFor="let char of characters; let i = index" 
+             class="card-wrapper" 
+             [class.first-card-wrapper]="i === 0">
+
+          <app-character-card [character]="char"></app-character-card>
+
+          <div *ngIf="i === 0 && isMobile && characters.length > 1" 
+               (click)="toggleMatrix()" 
+               class="reveal-icon-container">
+            <!-- Chevron Down -->
+            <svg *ngIf="!otherCharactersVisible" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+            <!-- Chevron Up -->
+            <svg *ngIf="otherCharactersVisible" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </ng-container>
 
     <!-- Divider -->
-    <hr class="border-t-2 border-dashed border-[#222] my-8">
+    <hr class="border-t-2 border-dashed border-[#222] my-4">
 
     <!-- History is now always visible below -->
     <app-simulation-history></app-simulation-history>
