@@ -1,7 +1,7 @@
 // Force git to detect changes
 const functions = require('@google-cloud/functions-framework');
 const chalk = require('chalk');
-const { firestoreService } = require('./common/services/Firestore.service');
+const { firestoreService } = require('../common/services/Firestore.service');
 const { apiFootballService } = require('./common/services/ApiFootball.service');
 
 function determineResultsFromFixture(fixture) {
