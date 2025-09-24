@@ -1,0 +1,32 @@
+/* 
+  App-wide styles for components that are not part of a specific feature,
+  like the construction banner.
+*/
+
+.construction-banner {
+    background-color: #0A0A0A;
+    border-bottom: 1px solid #00FF41;
+    padding: 0.75rem 1rem;
+    text-align: center;
+    font-family: 'Courier New', Courier, monospace; // Classic mono font
+}
+
+.banner-text {
+    color: #00FF41; // Matrix green
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    margin: 0;
+}
+
+.blinking-cursor {
+    animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+    from, to {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0;
+    }
+}
