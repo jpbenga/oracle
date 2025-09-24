@@ -1,4 +1,3 @@
-// Force git to detect changes
 const { Firestore } = require('@google-cloud/firestore');
 
 class FirestoreService {
@@ -8,7 +7,6 @@ class FirestoreService {
         this.predictionsCollection = this.firestore.collection('predictions');
         this.ticketsCollection = this.firestore.collection('tickets');
         this.predictionRunsCollection = this.firestore.collection('prediction_runs');
-        this.predictionReportsCollection = this.firestore.collection('prediction_reports');
     }
 
     async testConnection() {
@@ -56,6 +54,18 @@ class FirestoreService {
         }
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
+
+    async getPredictionsFromDateRange(startDate, endDate) {
+        const snapshot = await this.predictionsCollection
+            .where('matchDate', '>=', startDate.toISOString())
+            .where('matchDate', '<=', endDate.toISOString())
+            .get();
+        
+        if (snapshot.empty) {
+            return [];
+        }
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
     
     async saveTicket(ticketData) {
         return this.ticketsCollection.add(ticketData);
@@ -95,44 +105,6 @@ class FirestoreService {
 
     async updatePredictionStatus(predictionId, data) {
         return this.predictionsCollection.doc(predictionId).update(data);
-    }
-
-    async getPredictionReport(executionId) {
-        const doc = await this.predictionReportsCollection.doc(executionId).get();
-        if (!doc.exists) {
-            return null;
-        }
-        return { id: doc.id, ...doc.data() };
-    }
-
-    async getPredictionsForRun(executionId) {
-        const snapshot = await this.predictionsCollection.where('backtestExecutionId', '==', executionId).get();
-        if (snapshot.empty) {
-            return [];
-        }
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    }
-
-    async getReportResults(executionId) {
-        const snapshot = await this.predictionReportsCollection.doc(executionId).collection('results').get();
-        if (snapshot.empty) {
-            return [];
-        }
-        return snapshot.docs.map(doc => doc.data());
-    }
-
-    async savePredictionReport(executionId, reportData) {
-        return this.predictionReportsCollection.doc(executionId).set(reportData, { merge: true });
-    }
-
-    async saveResultsBatch(executionId, results) {
-        const batch = this.firestore.batch();
-        const resultsCollection = this.predictionReportsCollection.doc(executionId).collection('results');
-        results.forEach(result => {
-            const docRef = resultsCollection.doc(result.predictionId);
-            batch.set(docRef, result.data, { merge: true });
-        });
-        return batch.commit();
     }
 }
 
