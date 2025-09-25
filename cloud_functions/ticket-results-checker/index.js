@@ -1,6 +1,6 @@
 const functions = require('@google-cloud/functions-framework');
 const chalk = require('chalk');
-const { firestoreService } = require('../common/services/Firestore.service');
+const { firestoreService } = require('./common/services/Firestore.service');
 
 functions.http('runTicketResultsChecker', async (req, res) => {
     console.log(chalk.blue.bold("--- Démarrage du Job de Vérification des Résultats de Tickets ---"));
