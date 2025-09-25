@@ -21,7 +21,7 @@ import {
   ɵɵdefineInjector,
   ɵɵdefineNgModule,
   ɵɵinject
-} from "./chunk-IFESD5NC.js";
+} from "./chunk-FJ6DA6IA.js";
 import {
   queueScheduler
 } from "./chunk-XYFQ7QOX.js";
@@ -2965,9 +2965,9 @@ firebase/app/dist/esm/index.esm.js:
 
 @angular/core/fesm2022/rxjs-interop.mjs:
   (**
-   * @license Angular v20.3.1
+   * @license Angular v20.3.0
    * (c) 2010-2025 Google LLC. https://angular.io/
    * License: MIT
    *)
 */
-//# sourceMappingURL=chunk-6Y6YSDL7.js.map
+//# sourceMappingURL=chunk-2KU7NBBR.js.map

@@ -1,7 +1,7 @@
 import {
   XhrFactory,
   parseCookieValue
-} from "./chunk-ZJ25XCV3.js";
+} from "./chunk-CZW6QYGI.js";
 import {
   APP_BOOTSTRAP_LISTENER,
   ApplicationRef,
@@ -35,7 +35,7 @@ import {
   ɵɵdefineInjector,
   ɵɵdefineNgModule,
   ɵɵinject
-} from "./chunk-IFESD5NC.js";
+} from "./chunk-FJ6DA6IA.js";
 import {
   Observable,
   concatMap,
@@ -2720,7 +2720,7 @@ function appendMissingHeadersDetection(url, headers, headersToInclude) {
         if (!headersToInclude.includes(headerName) && !warningProduced.has(key)) {
           warningProduced.add(key);
           const truncatedUrl = truncateMiddle(url);
-          console.warn(formatRuntimeError(-2802, `Angular detected that the \`${headerName}\` header is accessed, but the value of the header was not transferred from the server to the client by the HttpTransferCache. To include the value of the \`${headerName}\` header for the \`${truncatedUrl}\` request, use the \`includeHeaders\` list. The \`includeHeaders\` can be defined either on a request level by adding the \`transferCache\` parameter, or on an application level by adding the \`httpCacheTransfer.includeHeaders\` argument to the \`provideClientHydration()\` call. `));
+          console.warn(formatRuntimeError(2802, `Angular detected that the \`${headerName}\` header is accessed, but the value of the header was not transferred from the server to the client by the HttpTransferCache. To include the value of the \`${headerName}\` header for the \`${truncatedUrl}\` request, use the \`includeHeaders\` list. The \`includeHeaders\` can be defined either on a request level by adding the \`transferCache\` parameter, or on an application level by adding the \`httpCacheTransfer.includeHeaders\` argument to the \`provideClientHydration()\` call. `));
         }
         return value.apply(target, [headerName]);
       };
@@ -2774,9 +2774,9 @@ export {
 @angular/common/fesm2022/module.mjs:
 @angular/common/fesm2022/http.mjs:
   (**
-   * @license Angular v20.3.1
+   * @license Angular v20.3.0
    * (c) 2010-2025 Google LLC. https://angular.io/
    * License: MIT
    *)
 */
-//# sourceMappingURL=chunk-TDPOIHRZ.js.map
+//# sourceMappingURL=chunk-JGYIXEYR.js.map

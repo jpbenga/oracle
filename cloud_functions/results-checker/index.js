@@ -184,6 +184,7 @@ functions.http('resultsChecker', async (req, res) => {
     });
 
     const newResultsToSave = [];
+    const predictionUpdates = [];
     let wonCount = 0;
     let lostCount = 0;
     for (const prediction of predictionsToProcess) {
@@ -212,6 +213,10 @@ functions.http('resultsChecker', async (req, res) => {
                 data: dataToSave
             });
 
+            if (result === 'WON' || result === 'LOST') {
+                predictionUpdates.push({ predictionId: prediction.id, result });
+            }
+
             if (result === 'WON') {
                 report.summary.won++;
                 wonCount++;
@@ -222,6 +227,11 @@ functions.http('resultsChecker', async (req, res) => {
             }
             if (report.summary.pending > 0) report.summary.pending--;
         }
+    }
+
+    if (predictionUpdates.length > 0) {
+        console.log(chalk.magenta(`   -> Mise à jour du résultat pour ${predictionUpdates.length} prédictions...`));
+        await firestoreService.batchUpdatePredictionResults(predictionUpdates);
     }
     
     if (newResultsToSave.length > 0) {

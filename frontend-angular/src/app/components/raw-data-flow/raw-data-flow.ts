@@ -1,9 +1,9 @@
 import { Component, Output, EventEmitter, inject, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ApiService } from '@app/services/api.service';
 import { Observable, map } from 'rxjs';
 import { MarketTranslatePipe } from '@app/pipes/market-translate.pipe';
 import { Prediction, ShortlistResponse } from '@app/types/api-types';
+import { FirestoreService } from '@app/services/firestore.service';
 
 @Component({
   selector: 'app-raw-data-flow',
@@ -16,7 +16,7 @@ export class RawDataFlow implements OnInit {
   @Input() selectedDayOffset: number = 0;
   @Output() close = new EventEmitter<void>();
   
-  private apiService = inject(ApiService);
+  private firestoreService = inject(FirestoreService);
   public shortlist$!: Observable<ShortlistResponse>;
   public expandedPredictionId: string | null = null;
   objectKeys = Object.keys;
@@ -24,7 +24,7 @@ export class RawDataFlow implements OnInit {
   ngOnInit(): void {
     const date = new Date();
     date.setDate(date.getDate() + this.selectedDayOffset);
-    this.shortlist$ = this.apiService.getShortlist(date).pipe(
+    this.shortlist$ = this.firestoreService.getShortlistRealtime(date).pipe(
       map(shortlist => {
         if (!shortlist || !shortlist.predictions) return shortlist;
 

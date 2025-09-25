@@ -71,6 +71,23 @@ class FirestoreService {
         return this.ticketsCollection.add(ticketData);
     }
 
+    async getPendingOracleTickets(dateStr) {
+        const snapshot = await this.ticketsCollection
+            .where('date', '==', dateStr)
+            .where('title', '==', "The Oracle's Choice")
+            .where('status', '==', 'PENDING')
+            .get();
+        
+        if (snapshot.empty) {
+            return [];
+        }
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+
+    async updateTicketStatus(ticketId, status) {
+        return this.ticketsCollection.doc(ticketId).update({ status });
+    }
+
     async deletePendingTicketsForDate(dateStr) {
         const snapshot = await this.ticketsCollection
             .where('creation_date', '==', dateStr)
@@ -105,6 +122,18 @@ class FirestoreService {
 
     async updatePredictionStatus(predictionId, data) {
         return this.predictionsCollection.doc(predictionId).update(data);
+    }
+
+    async batchUpdatePredictionResults(updates) {
+        if (!updates || updates.length === 0) {
+            return;
+        }
+        const batch = this.firestore.batch();
+        updates.forEach(update => {
+            const docRef = this.predictionsCollection.doc(update.predictionId);
+            batch.update(docRef, { result: update.result, status: 'COMPLETED' });
+        });
+        return batch.commit();
     }
 }
 

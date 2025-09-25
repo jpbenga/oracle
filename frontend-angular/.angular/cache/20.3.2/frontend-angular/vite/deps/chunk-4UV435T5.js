@@ -57,7 +57,7 @@ import {
   ɵɵinject,
   ɵɵinjectAttribute,
   ɵɵstyleProp
-} from "./chunk-IFESD5NC.js";
+} from "./chunk-FJ6DA6IA.js";
 import {
   Subject
 } from "./chunk-QJQPERGE.js";
@@ -1295,7 +1295,7 @@ function timeZoneGetter(width) {
           return (zone >= 0 ? "+" : "") + padNumber(hours, 2, minusSign) + ":" + padNumber(Math.abs(zone % 60), 2, minusSign);
         }
       default:
-        throw new RuntimeError(2310, ngDevMode && `Unknown zone width "${width}"`);
+        throw new RuntimeError(2302, ngDevMode && `Unknown zone width "${width}"`);
     }
   };
 }
@@ -1625,7 +1625,7 @@ function toDate(value) {
   }
   const date = new Date(value);
   if (!isDate(date)) {
-    throw new RuntimeError(2311, ngDevMode && `Unable to convert "${value}" into a date`);
+    throw new RuntimeError(2302, ngDevMode && `Unable to convert "${value}" into a date`);
   }
   return date;
 }
@@ -3716,7 +3716,7 @@ function isPlatformBrowser(platformId) {
 function isPlatformServer(platformId) {
   return platformId === PLATFORM_SERVER_ID;
 }
-var VERSION = new Version("20.3.1");
+var VERSION = new Version("20.3.0");
 var ViewportScroller = class _ViewportScroller {
   // De-sugared tree-shakable injection
   // See #23917
@@ -5186,9 +5186,9 @@ export {
 @angular/common/fesm2022/platform_navigation.mjs:
 @angular/common/fesm2022/common.mjs:
   (**
-   * @license Angular v20.3.1
+   * @license Angular v20.3.0
    * (c) 2010-2025 Google LLC. https://angular.io/
    * License: MIT
    *)
 */
-//# sourceMappingURL=chunk-QEOQMU2D.js.map
+//# sourceMappingURL=chunk-4UV435T5.js.map
