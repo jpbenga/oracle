@@ -4,6 +4,8 @@ const chalk = require('chalk');
 const { firestoreService } = require('./common/services/Firestore.service');
 const { apiFootballService } = require('./common/services/ApiFootball.service');
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 function determineResultsFromFixture(fixture) {
     const results = {};
     const ff = fixture.goals;
@@ -69,9 +71,18 @@ functions.http('resultsChecker', async (req, res) => {
     console.log(chalk.cyan(`   -> ${predictionsToProcess.length} prédiction(s) à traiter.`));
 
     const fixtureIdsToQuery = [...new Set(predictionsToProcess.map(p => p.fixtureId))];
-    console.log(chalk.cyan(`   -> Récupération des résultats pour ${fixtureIdsToQuery.length} match(s) unique(s)...`));
+    console.log(chalk.cyan(`   -> Récupération des résultats pour ${fixtureIdsToQuery.length} match(s) unique(s), un par un...`));
     
-    const fixturesData = await apiFootballService.getFixturesByIds(fixtureIdsToQuery);
+    const fixturesData = [];
+    for (const fixtureId of fixtureIdsToQuery) {
+        console.log(chalk.blue(`      -> Appel API pour la fixture ID: ${fixtureId}`));
+        const fixture = await apiFootballService.getMatchById(fixtureId);
+        if (fixture) {
+            fixturesData.push(fixture);
+        }
+        // Pause pour ne pas surcharger l'API
+        await sleep(300);
+    }
 
     console.log(chalk.blue.bold(`\n--- Réponse de l'API Football pour les fixtures ---`));
     console.log(chalk.white(JSON.stringify(fixturesData, null, 2)));
