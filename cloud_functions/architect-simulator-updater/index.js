@@ -87,7 +87,14 @@ async function recalculateCurrentMonthStats() {
 
     const allMonthTickets = ticketsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     console.log(chalk.green(`   -> Found ${allMonthTickets.length} tickets for the current month.`));
-    console.log(chalk.blue.bold('--- All Tickets Found ---'));
+
+    console.log(chalk.blue.bold('--- Status of All Tickets Found ---'));
+    allMonthTickets.forEach(ticket => {
+        console.log(`- ID: ${ticket.id}, Date: ${ticket.date}, Status: ${ticket.status}`);
+    });
+    console.log(chalk.blue.bold('--- End of Ticket Status List ---'));
+
+    console.log(chalk.blue.bold('--- All Tickets Found (Full Structure) ---'));
     console.log(JSON.stringify(allMonthTickets, null, 2));
     console.log(chalk.blue.bold('--- End of Tickets ---'));
 
