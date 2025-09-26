@@ -69,23 +69,25 @@ async function updateDaily() {
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayStr = yesterday.toISOString().split('T')[0]; // Format YYYY-MM-DD
 
-    console.log(`   -> Searching for "The Oracle's Choice" ticket for date: ${yesterdayStr}`);
+    console.log(`   -> Searching for a ticket for date: ${yesterdayStr}`);
 
-    // 1. Get the "The Oracle's Choice" ticket for the previous day.
+    // 1. Get a ticket for the previous day.
     const ticketsRef = firestore.collection('tickets');
     const ticketSnapshot = await ticketsRef
         .where('date', '==', yesterdayStr)
-        .where('title', '==', "The Oracle's Choice")
         .limit(1)
         .get();
 
     if (ticketSnapshot.empty) {
-        console.log(chalk.yellow(`   -> No "The Oracle's Choice" ticket found for ${yesterdayStr}. Skipping update.`));
+        console.log(chalk.yellow(`   -> No ticket found for ${yesterdayStr}. Skipping update.`));
         return;
     }
 
     const oracleTicket = ticketSnapshot.docs[0].data();
     console.log(`   -> Found ticket with status: ${oracleTicket.status}`);
+    console.log(chalk.blue.bold('--- Ticket Found ---'));
+    console.log(JSON.stringify(oracleTicket, null, 2));
+    console.log(chalk.blue.bold('--- End of Ticket ---'));
 
     // Only proceed if the ticket is won or lost
     if (oracleTicket.status !== 'won' && oracleTicket.status !== 'lost') {

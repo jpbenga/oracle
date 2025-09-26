@@ -5,9 +5,9 @@ export interface Prediction {
   id: string;
   fixtureId: number;
   matchLabel: string;
-  home_team: { name: string; logo: string; };
-  away_team: { name: string; logo: string; };
-  league: { name: string; country: string; logo: string; };
+  home_team?: { name: string; logo: string; };
+  away_team?: { name: string; logo: string; };
+  league?: { name: string; country: string; logo: string; };
   matchDate: string; // ISOString
   market: string;
   score: number;
