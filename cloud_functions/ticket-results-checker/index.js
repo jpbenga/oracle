@@ -26,32 +26,40 @@ functions.http('runTicketResultsChecker', async (req, res) => {
             console.log(chalk.white(`   -> ${tickets.length} ticket(s) trouvé(s).`));
 
             for (const ticket of tickets) {
-                let newStatus = 'won'; // Assume won until proven otherwise
+                console.log(chalk.blue(`   --- Traitement du Ticket ${ticket.id} (Statut actuel: ${ticket.status}) ---`));
+                let newStatus = 'won';
+                let reason = 'Tous les paris sont gagnants.';
 
                 if (!ticket.bets || ticket.bets.length === 0) {
-                    console.log(chalk.yellow(`      -> Ticket ${ticket.id} n'a aucun pari. Passage au suivant.`));
+                    console.log(chalk.yellow(`      -> Le ticket n'a aucun pari.`));
+                    console.log(chalk.blue(`   --- Fin du traitement du Ticket ${ticket.id} ---`));
                     continue;
                 }
 
                 for (const bet of ticket.bets) {
-                    // The `result` field is updated by the `results-checker` function
+                    const betInfo = `${bet.home_team?.name || 'Equipe Inconnue'} vs ${bet.away_team?.name || 'Equipe Inconnue'} - ${bet.market}`;
+                    console.log(chalk.white(`      - Pari: ${betInfo}, Résultat: ${bet.result || 'NON DISPONIBLE'}`));
+
                     if (bet.result === 'LOST') {
                         newStatus = 'lost';
-                        break; // If one bet is lost, the whole ticket is lost
+                        reason = `Le pari "${betInfo}" est perdant.`;
+                        break;
                     }
                     if (bet.result === null || bet.result === undefined || bet.result === 'UNKNOWN') {
                         newStatus = 'PENDING';
-                        break; // If any bet is not yet resolved, the ticket is still pending
+                        reason = `Le résultat du pari "${betInfo}" n'est pas encore disponible.`;
+                        break;
                     }
                 }
 
                 if (ticket.status !== newStatus && newStatus !== 'PENDING') {
-                    console.log(chalk.magenta.bold(`      -> Le statut du Ticket ${ticket.id} passe à : ${newStatus.toUpperCase()}`));
+                    console.log(chalk.magenta.bold(`      -> Le statut du Ticket ${ticket.id} passe de ${ticket.status} à : ${newStatus.toUpperCase()}.`));
                     await firestoreService.updateTicketStatus(ticket.id, newStatus);
                     totalTicketsUpdated++;
                 } else {
-                    console.log(chalk.gray(`      -> Le statut du Ticket ${ticket.id} reste : ${ticket.status}`));
+                    console.log(chalk.gray(`      -> Le statut du Ticket ${ticket.id} reste : ${ticket.status}. Raison: ${reason}`));
                 }
+                console.log(chalk.blue(`   --- Fin du traitement du Ticket ${ticket.id} ---`));
             }
         }
 
