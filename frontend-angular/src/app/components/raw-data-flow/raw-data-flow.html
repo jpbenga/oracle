@@ -51,7 +51,7 @@
                       }">
                       <td class="p-2">
                         <div>{{ item.matchLabel }}</div>
-                        <div class="text-xs text-gray-400">{{ item.league.name }} ({{ item.league.country }})</div>
+                        <div class="text-xs text-gray-400">{{ item.league?.name }} ({{ item.league?.country }})</div>
                         <div class="text-gray-500 text-xs">{{ item.matchDate | date:'dd/MM/yyyy HH:mm' }}</div>
                       </td>
                       <td class="p-2 text-[#00FF41]">{{ item.market | marketTranslate }}</td>

@@ -16,6 +16,9 @@ export class TicketCard {
   objectKeys = Object.keys;
 
   private calculateHistoricalQuality(perf: Prediction['market_performance']): number {
+    if (!perf) {
+      return 0;
+    }
     const highTranches = ['70-79', '80-89', '90-100'];
     let success = 0, total = 0;
     highTranches.forEach(key => {
