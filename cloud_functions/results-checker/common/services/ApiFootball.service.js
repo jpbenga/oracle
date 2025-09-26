@@ -94,6 +94,15 @@ class ApiFootballService {
     const results = await this.makeRequest('/fixtures', { id: matchId });
     return results && results.length > 0 ? results[0] : null;
   }
+
+  async getFixturesByIds(fixtureIds) {
+    if (!fixtureIds || fixtureIds.length === 0) {
+      return [];
+    }
+    // The API expects a string of hyphen-separated IDs, e.g. '123-456-789'
+    const idsString = fixtureIds.join('-');
+    return this.makeRequest('/fixtures', { ids: idsString });
+  }
 }
 
 exports.apiFootballService = new ApiFootballService();
