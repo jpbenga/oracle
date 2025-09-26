@@ -27,6 +27,9 @@ functions.http('runTicketResultsChecker', async (req, res) => {
 
             for (const ticket of tickets) {
                 console.log(chalk.blue(`   --- Traitement du Ticket ${ticket.id} (Statut actuel: ${ticket.status}) ---`));
+                console.log(chalk.gray('--- Structure du Ticket ---'));
+                console.log(JSON.stringify(ticket, null, 2));
+                console.log(chalk.gray('--- Fin de la Structure ---'));
                 let newStatus = 'won';
                 let reason = 'Tous les paris sont gagnants.';
 
