@@ -74,11 +74,15 @@ functions.http('resultsChecker', async (req, res) => {
     const fixturesData = await apiFootballService.getFixturesByIds(fixtureIdsToQuery);
 
     const fixtureResultsMap = {};
-    fixturesData.forEach(fixture => {
-        if (fixture.fixture.status.short === 'FT') {
-            fixtureResultsMap[fixture.fixture.id] = determineResultsFromFixture(fixture);
-        }
-    });
+    if (fixturesData) {
+        fixturesData.forEach(fixture => {
+            if (fixture.fixture.status.short === 'FT') {
+                fixtureResultsMap[fixture.fixture.id] = determineResultsFromFixture(fixture);
+            }
+        });
+    } else {
+        console.log(chalk.red(`   -> Impossible de récupérer les données des matchs depuis l'API. Le traitement des résultats est annulé pour ce cycle.`));
+    }
 
     const predictionUpdates = [];
     let wonCount = 0;
