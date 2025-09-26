@@ -50,7 +50,6 @@ async function archiveAndReset() {
     const batch = firestore.batch();
     initialCharacters.forEach(char => {
         const docRef = charactersRef.doc(char.name);
-        // Use set with merge:false to completely overwrite, ensuring a clean reset
         batch.set(docRef, char, { merge: false });
     });
 
@@ -60,106 +59,90 @@ async function archiveAndReset() {
 }
 
 /**
- * Updates character stats based on the previous day's ticket result.
+ * Recalculates the current month's character stats based on all completed tickets.
  */
-async function updateDaily() {
-    console.log(chalk.blue.bold('Daily update running...'));
+async function recalculateCurrentMonthStats() {
+    console.log(chalk.blue.bold('Recalculating stats for the current month...'));
 
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0]; // Format YYYY-MM-DD
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
 
-    console.log(`   -> Searching for a ticket for date: ${yesterdayStr}`);
+    console.log(`   -> Processing tickets from ${startDateStr} to ${endDateStr}`);
 
-    // 1. Get a ticket for the previous day.
+    // 1. Get all tickets for the current month
     const ticketsRef = firestore.collection('tickets');
-    const ticketSnapshot = await ticketsRef
-        .where('date', '==', yesterdayStr)
-        .limit(1)
+    const ticketsSnapshot = await ticketsRef
+        .where('date', '>=', startDateStr)
+        .where('date', '<=', endDateStr)
+        .orderBy('date', 'asc') // Process chronologically
         .get();
 
-    if (ticketSnapshot.empty) {
-        console.log(chalk.yellow(`   -> No ticket found for ${yesterdayStr}. Skipping update.`));
+    if (ticketsSnapshot.empty) {
+        console.log(chalk.yellow(`   -> No tickets found for the current month. Nothing to calculate.`));
         return;
     }
 
-    const oracleTicket = ticketSnapshot.docs[0].data();
-    console.log(`   -> Found ticket with status: ${oracleTicket.status}`);
-    console.log(chalk.blue.bold('--- Ticket Found ---'));
-    console.log(JSON.stringify(oracleTicket, null, 2));
-    console.log(chalk.blue.bold('--- End of Ticket ---'));
+    const allMonthTickets = ticketsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log(chalk.green(`   -> Found ${allMonthTickets.length} tickets for the current month.`));
+    console.log(chalk.blue.bold('--- All Tickets Found ---'));
+    console.log(JSON.stringify(allMonthTickets, null, 2));
+    console.log(chalk.blue.bold('--- End of Tickets ---'));
 
-    // Only proceed if the ticket is won or lost
-    if (oracleTicket.status !== 'won' && oracleTicket.status !== 'lost') {
-        console.log(chalk.yellow(`   -> Ticket status is '${oracleTicket.status}'. No action taken.`));
-        return;
-    }
+    // 2. Start with initial character state
+    let characters = JSON.parse(JSON.stringify(initialCharacters)); // Deep copy
+    const charactersMap = new Map(characters.map(c => [c.name, c]));
 
-    // 2. Get current character states from 'simulation_characters'.
-    const charactersRef = firestore.collection('simulation_characters');
-    const charactersSnapshot = await charactersRef.get();
+    // 3. Process each ticket chronologically
+    const processedTickets = allMonthTickets.filter(t => t.status === 'won' || t.status === 'lost');
+    console.log(chalk.cyan(`
+   -> Processing ${processedTickets.length} completed (won/lost) tickets...`));
 
-    if (charactersSnapshot.empty) {
-        console.log(chalk.yellow('   -> Character collection is empty. Seeding with initial data...'));
-        const batch = firestore.batch();
-        initialCharacters.forEach(char => {
-            const docRef = charactersRef.doc(char.name);
-            batch.set(docRef, char);
-        });
-        await batch.commit();
-        console.log(chalk.green('   -> Characters seeded successfully.'));
-        // Re-fetch the characters after seeding
-        const newSnapshot = await charactersRef.get();
-        await updateCharacters(newSnapshot, oracleTicket);
-    } else {
-        await updateCharacters(charactersSnapshot, oracleTicket);
-    }
+    for (const ticket of processedTickets) {
+        console.log(chalk.green(`
+   --- Applying Ticket ${ticket.id} (Date: ${ticket.date}, Status: ${ticket.status}, Odd: ${ticket.totalOdd.toFixed(2)}) ---`));
+        
+        charactersMap.forEach(char => {
+            const oldBankroll = char.bankroll;
+            if (ticket.status === 'won') {
+                const newBankroll = char.bankroll * ticket.totalOdd;
+                const profit = newBankroll - char.bankroll;
+                char.bankroll = newBankroll;
+                char.progress++;
+                char.performance += profit;
 
-    console.log(chalk.green('Daily update complete.'));
-}
-
-/**
- * Helper function to apply win/loss logic and save updated characters.
- * @param {FirebaseFirestore.QuerySnapshot} charactersSnapshot
- * @param {object} oracleTicket
- */
-async function updateCharacters(charactersSnapshot, oracleTicket) {
-    const batch = firestore.batch();
-
-    charactersSnapshot.forEach(doc => {
-        const char = doc.data();
-        console.log(`   -> Updating character: ${char.name}`);
-
-        // 3. Apply the win/loss logic
-        if (oracleTicket.status === 'won') {
-            const newBankroll = char.bankroll * oracleTicket.totalOdd;
-            const profit = newBankroll - char.bankroll;
-            char.bankroll = newBankroll;
-            char.progress++;
-            char.performance += profit;
-
-            // Check for goal completion
-            if (char.progress >= char.goal) {
-                char.bankroll = char.initialBankroll; // Reset bankroll
-                char.progress = 0; // Reset progress
-                console.log(chalk.magenta(`      --> ${char.name} reached their goal! Resetting.`));
+                if (char.progress >= char.goal) {
+                    char.bankroll = char.initialBankroll;
+                    char.progress = 0;
+                    console.log(chalk.magenta(`      --> ${char.name} reached goal! Bankroll reset. Old: ${oldBankroll.toFixed(2)}, New: ${char.bankroll.toFixed(2)}`));
+                } else {
+                    console.log(chalk.white(`      --> ${char.name} WON. Old Bankroll: ${oldBankroll.toFixed(2)}, New: ${char.bankroll.toFixed(2)}`));
+                }
+            } else if (ticket.status === 'lost') {
+                char.performance -= char.bankroll;
+                char.bankroll = char.initialBankroll;
+                char.progress = 0;
+                char.losses++;
+                console.log(chalk.red(`      --> ${char.name} LOST. Bankroll reset. Old: ${oldBankroll.toFixed(2)}, New: ${char.bankroll.toFixed(2)}`));
             }
-        } else if (oracleTicket.status === 'lost') {
-            char.performance -= char.bankroll; // Subtract the bet amount from performance
-            char.bankroll = char.initialBankroll; // Reset bankroll
-            char.progress = 0; // Reset progress
-            char.losses++;
-            console.log(chalk.red(`      --> ${char.name} lost. Resetting.`));
-        }
+        });
+    }
 
-        // 4. Save the updated character back to Firestore
-        const docRef = firestore.collection('simulation_characters').doc(doc.id);
-        batch.update(docRef, char);
+    // 4. Save the final state
+    console.log(chalk.blue.bold('\n--- Final Character Stats for the Month ---'));
+    const batch = firestore.batch();
+    charactersMap.forEach(char => {
+        console.log(chalk.white(`- ${char.name}: Bankroll=${char.bankroll.toFixed(2)}, Perf=${char.performance.toFixed(2)}, Wins=${char.progress}, Losses=${char.losses}`));
+        const docRef = firestore.collection('simulation_characters').doc(char.name);
+        batch.set(docRef, char, { merge: true }); // Use set with merge to save the final state
     });
 
     await batch.commit();
-    console.log(chalk.green('   -> All characters have been updated in Firestore.'));
+    console.log(chalk.green.bold('\n--- Architect Simulator stats updated successfully in Firestore. ---'));
 }
+
 
 functions.http('runArchitectSimulatorUpdate', async (req, res) => {
     console.log(chalk.cyan.bold('--- Architect Simulator Updater Job Started ---'));
@@ -169,11 +152,12 @@ functions.http('runArchitectSimulatorUpdate', async (req, res) => {
 
     try {
         if (isFirstDayOfMonth) {
+            // On the first day, we archive the previous month BEFORE recalculating the new month.
             await archiveAndReset();
         }
         
-        // The daily update should run every day, including the first day after the reset.
-        await updateDaily();
+        // Recalculate the current month's stats every time.
+        await recalculateCurrentMonthStats();
 
         console.log(chalk.cyan.bold('--- Architect Simulator Updater Job Finished Successfully ---'));
         res.status(200).send('Architect Simulator Updated Successfully.');
