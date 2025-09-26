@@ -16,10 +16,10 @@ functions.http('runTicketResultsChecker', async (req, res) => {
 
         for (const dateStr of datesToCheck) {
             console.log(chalk.cyan(`Vérification des tickets pour le ${dateStr}...`));
-            const pendingTickets = await firestoreService.getPendingOracleTickets(dateStr);
+            const pendingTickets = await firestoreService.getPendingTicketsByDate(dateStr);
 
             if (pendingTickets.length === 0) {
-                console.log(chalk.gray(`   -> Aucun ticket "Le choix de l'oracle" en attente trouvé pour le ${dateStr}.`));
+                console.log(chalk.gray(`   -> Aucun ticket en attente trouvé pour le ${dateStr}.`));
                 continue;
             }
 

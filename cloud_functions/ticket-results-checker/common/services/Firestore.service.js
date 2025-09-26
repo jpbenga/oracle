@@ -71,10 +71,9 @@ class FirestoreService {
         return this.ticketsCollection.add(ticketData);
     }
 
-    async getPendingOracleTickets(dateStr) {
+    async getPendingTicketsByDate(dateStr) {
         const snapshot = await this.ticketsCollection
             .where('date', '==', dateStr)
-            .where('title', '==', "The Oracle's Choice")
             .where('status', '==', 'PENDING')
             .get();
         
