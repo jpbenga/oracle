@@ -73,13 +73,27 @@ functions.http('resultsChecker', async (req, res) => {
     
     const fixturesData = await apiFootballService.getFixturesByIds(fixtureIdsToQuery);
 
+    console.log(chalk.blue.bold(`\n--- Réponse de l'API Football pour les fixtures ---`));
+    console.log(chalk.white(JSON.stringify(fixturesData, null, 2)));
+    console.log(chalk.blue.bold(`--- Fin de la réponse de l'API ---`));
+
     const fixtureResultsMap = {};
     if (fixturesData) {
+        console.log(chalk.cyan(`\n--- Analyse des ${fixturesData.length} fixture(s) retournée(s) par l'API ---`));
         fixturesData.forEach(fixture => {
+            const fixtureInfo = fixture.fixture;
+            const teams = fixture.teams;
+            console.log(chalk.white(`-> Traitement de la fixture ID: ${fixtureInfo.id} (${teams.home.name} vs ${teams.away.name})`));
+            console.log(chalk.white(`   Statut du match: ${fixtureInfo.status.long} (Code: ${fixtureInfo.status.short})`));
+
             if (fixture.fixture.status.short === 'FT') {
+                console.log(chalk.green(`   -> Le match est terminé. Calcul des résultats...`));
                 fixtureResultsMap[fixture.fixture.id] = determineResultsFromFixture(fixture);
+            } else {
+                console.log(chalk.yellow(`   -> Le match n'est pas encore terminé. Il sera ignoré pour ce cycle.`));
             }
         });
+        console.log(chalk.cyan(`--- Fin de l'analyse des fixtures ---`));
     } else {
         console.log(chalk.red(`   -> Impossible de récupérer les données des matchs depuis l'API. Le traitement des résultats est annulé pour ce cycle.`));
     }
