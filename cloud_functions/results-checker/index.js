@@ -88,22 +88,37 @@ functions.http('resultsChecker', async (req, res) => {
     let wonCount = 0;
     let lostCount = 0;
 
+    console.log(chalk.blue.bold(`\n--- Analyse détaillée des ${predictionsToProcess.length} prédiction(s) à traiter ---`));
     for (const prediction of predictionsToProcess) {
+        const matchInfo = `${prediction.home_team?.name || 'Equipe Inconnue'} vs ${prediction.away_team?.name || 'Equipe Inconnue'}`;
+        console.log(chalk.cyan(`\n-> Analyse de la prédiction ID: ${prediction.id}`));
+        console.log(chalk.white(`   Match: ${matchInfo} (Fixture ID: ${prediction.fixtureId})`));
+        console.log(chalk.white(`   Marché: ${prediction.market}`));
+
         const allMarketResults = fixtureResultsMap[prediction.fixtureId];
         if (allMarketResults) {
             const result = allMarketResults[prediction.market] || 'UNKNOWN';
+            console.log(chalk.white(`   Résultat trouvé pour ce marché: ${result}`));
             
             if (result === 'WON' || result === 'LOST') {
+                console.log(chalk.green(`   -> Préparation de la mise à jour: { id: ${prediction.id}, result: ${result} }`));
                 predictionUpdates.push({ predictionId: prediction.id, result });
                 if (result === 'WON') wonCount++;
                 if (result === 'LOST') lostCount++;
+            } else {
+                console.log(chalk.yellow(`   -> Aucun résultat concluant (WON/LOST) trouvé pour ce marché. Pas de mise à jour.`));
             }
+        } else {
+            console.log(chalk.yellow(`   -> Aucun résultat de match terminé trouvé pour la fixture ID ${prediction.fixtureId}.`));
         }
     }
+    console.log(chalk.blue.bold(`\n--- Fin de l'analyse détaillée ---`));
 
     if (predictionUpdates.length > 0) {
-        console.log(chalk.magenta(`   -> Mise à jour du résultat pour ${predictionUpdates.length} prédictions...`));
+        console.log(chalk.magenta(`\n--- Préparation de la mise à jour groupée pour ${predictionUpdates.length} prédictions... ---`));
+        console.log(chalk.white(JSON.stringify(predictionUpdates, null, 2)));
         await firestoreService.batchUpdatePredictionResults(predictionUpdates);
+        console.log(chalk.magenta.bold(`--- Mise à jour groupée terminée. ---`));
     }
     
     const totalProcessedInRun = wonCount + lostCount;

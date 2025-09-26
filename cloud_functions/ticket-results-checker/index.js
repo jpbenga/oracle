@@ -36,18 +36,31 @@ functions.http('runTicketResultsChecker', async (req, res) => {
                     continue;
                 }
 
-                for (const bet of ticket.bets) {
-                    const betInfo = `${bet.home_team?.name || 'Equipe Inconnue'} vs ${bet.away_team?.name || 'Equipe Inconnue'} - ${bet.market}`;
-                    console.log(chalk.white(`      - Pari: ${betInfo}, Résultat: ${bet.result || 'NON DISPONIBLE'}`));
+                const predictionIds = ticket.bets.map(b => b.id).filter(id => id);
+                if (predictionIds.length === 0) {
+                    console.log(chalk.yellow(`      -> Impossible de trouver les IDs des paris pour ce ticket.`));
+                    console.log(chalk.blue(`   --- Fin du traitement du Ticket ${ticket.id} ---`));
+                    continue;
+                }
 
-                    if (bet.result === 'LOST') {
+                const latestPredictions = await firestoreService.getPredictionsByIds(predictionIds);
+                const latestPredictionsMap = new Map(latestPredictions.map(p => [p.id, p]));
+
+                for (const bet of ticket.bets) {
+                    const latestPrediction = latestPredictionsMap.get(bet.id);
+                    const latestResult = latestPrediction ? latestPrediction.result : 'UNKNOWN';
+
+                    const betInfo = `${bet.home_team?.name || 'Equipe Inconnue'} vs ${bet.away_team?.name || 'Equipe Inconnue'} - ${bet.market}`;
+                    console.log(chalk.white(`      - Pari: ${betInfo}, Résultat du ticket: ${bet.result || 'NON DISPONIBLE'}, Résultat à jour: ${latestResult || 'NON DISPONIBLE'}`));
+
+                    if (latestResult === 'LOST') {
                         newStatus = 'lost';
                         reason = `Le pari "${betInfo}" est perdant.`;
                         break;
                     }
-                    if (bet.result === null || bet.result === undefined || bet.result === 'UNKNOWN') {
+                    if (latestResult === null || latestResult === undefined || latestResult === 'UNKNOWN') {
                         newStatus = 'PENDING';
-                        reason = `Le résultat du pari "${betInfo}" n'est pas encore disponible.`;
+                        reason = `Le résultat à jour du pari "${betInfo}" n'est pas encore disponible.`;
                         break;
                     }
                 }

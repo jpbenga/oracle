@@ -133,6 +133,15 @@ class FirestoreService {
         });
         return batch.commit();
     }
+
+    async getPredictionsByIds(predictionIds) {
+        if (!predictionIds || predictionIds.length === 0) {
+            return [];
+        }
+        const refs = predictionIds.map(id => this.predictionsCollection.doc(id));
+        const snapshots = await this.firestore.getAll(...refs);
+        return snapshots.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
 }
 
 module.exports = {
