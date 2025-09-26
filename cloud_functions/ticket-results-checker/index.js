@@ -16,16 +16,16 @@ functions.http('runTicketResultsChecker', async (req, res) => {
 
         for (const dateStr of datesToCheck) {
             console.log(chalk.cyan(`Vérification des tickets pour le ${dateStr}...`));
-            const pendingTickets = await firestoreService.getPendingTicketsByDate(dateStr);
+            const tickets = await firestoreService.getTicketsByDate(dateStr);
 
-            if (pendingTickets.length === 0) {
-                console.log(chalk.gray(`   -> Aucun ticket en attente trouvé pour le ${dateStr}.`));
+            if (tickets.length === 0) {
+                console.log(chalk.gray(`   -> Aucun ticket trouvé pour le ${dateStr}.`));
                 continue;
             }
 
-            console.log(chalk.white(`   -> ${pendingTickets.length} ticket(s) en attente trouvé(s).`));
+            console.log(chalk.white(`   -> ${tickets.length} ticket(s) trouvé(s).`));
 
-            for (const ticket of pendingTickets) {
+            for (const ticket of tickets) {
                 let newStatus = 'won'; // Assume won until proven otherwise
 
                 if (!ticket.bets || ticket.bets.length === 0) {
