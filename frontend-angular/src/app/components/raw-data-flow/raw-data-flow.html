@@ -44,7 +44,11 @@
               </thead>
               <tbody>
                 <ng-container *ngFor="let item of shortlist.predictions">
-                  <tr class="border-b border-[#111] hover:bg-[#0A0A0A] cursor-pointer" (click)="toggleDetails(item.id)">
+                  <tr class="border-b border-[#111] hover:bg-[#0A0A0A] cursor-pointer" (click)="toggleDetails(item.id)"
+                      [ngClass]="{
+                        'prediction-won': item.resultStatus === 'WON',
+                        'prediction-lost': item.resultStatus === 'LOST'
+                      }">
                       <td class="p-2">
                         <div>{{ item.matchLabel }}</div>
                         <div class="text-xs text-gray-400">{{ item.league.name }} ({{ item.league.country }})</div>

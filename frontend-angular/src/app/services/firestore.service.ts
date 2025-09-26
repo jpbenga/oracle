@@ -35,7 +35,10 @@ export class FirestoreService {
 
     return (collectionData(q, { idField: 'id' }) as Observable<Prediction[]>).pipe(
       map((predictions: Prediction[]) => {
-        const predictionsWithStatus = predictions.map(p => {
+        // Appliquer le filtre sur la cote comme demandé
+        const filteredPredictions = predictions.filter(p => p.odd != null && p.odd >= 1.3);
+
+        const predictionsWithStatus = filteredPredictions.map(p => {
           let resultStatus: 'WON' | 'LOST' | 'UNKNOWN' | 'IN_PROGRESS' = 'UNKNOWN';
           if (p.result === 'WON') {
             resultStatus = 'WON';

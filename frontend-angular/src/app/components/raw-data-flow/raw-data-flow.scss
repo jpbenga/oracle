@@ -20,3 +20,18 @@
 .highlight-tranche {
   background-color: #00ff4120;
 }
+
+
+tr.prediction-won {
+  background-color: rgba(3, 218, 198, 0.1);
+  &:hover {
+    background-color: rgba(3, 218, 198, 0.15);
+  }
+}
+
+tr.prediction-lost {
+  background-color: rgba(207, 102, 121, 0.1);
+  &:hover {
+    background-color: rgba(207, 102, 121, 0.15);
+  }
+}
