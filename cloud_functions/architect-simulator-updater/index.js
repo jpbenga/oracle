@@ -77,7 +77,6 @@ async function recalculateCurrentMonthStats() {
     const ticketsSnapshot = await ticketsRef
         .where('date', '>=', startDateStr)
         .where('date', '<=', endDateStr)
-        .orderBy('date', 'asc') // Process chronologically
         .get();
 
     if (ticketsSnapshot.empty) {
