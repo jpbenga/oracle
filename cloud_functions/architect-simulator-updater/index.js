@@ -1,8 +1,6 @@
 const functions = require('@google-cloud/functions-framework');
 const { firestoreService } = require('./common/services/Firestore.service');
 const chalk = require('chalk');
-const fs = require('fs');
-const path = require('path');
 
 const firestore = firestoreService.firestore;
 
@@ -240,11 +238,7 @@ async function recalculateCurrentMonthStats() {
     await batch.commit();
     console.log(chalk.green.bold('\n--- Architect Simulator stats updated successfully in Firestore. ---'));
 
-    // 5. Generate HTML report
-    const htmlReport = generateHtmlReport(charactersMap);
-    const reportPath = path.join('/home/user/the-oracle-project', 'simulation_results.html');
-    fs.writeFileSync(reportPath, htmlReport);
-    console.log(chalk.blue.bold(`\n--- HTML report generated at ${reportPath} ---`));
+    return charactersMap;
 }
 
 
@@ -261,10 +255,16 @@ functions.http('runArchitectSimulatorUpdate', async (req, res) => {
         }
         
         // Recalculate the current month's stats every time.
-        await recalculateCurrentMonthStats();
+        const charactersMap = await recalculateCurrentMonthStats();
 
         console.log(chalk.cyan.bold('--- Architect Simulator Updater Job Finished Successfully ---'));
-        res.status(200).send('Architect Simulator Updated Successfully.');
+        
+        if (charactersMap) {
+            const htmlReport = generateHtmlReport(charactersMap);
+            res.status(200).send(htmlReport);
+        } else {
+            res.status(200).send('Architect Simulator Updated Successfully, but no data was returned for the report.');
+        }
 
     } catch (error) {
         console.error(chalk.red.bold('An error occurred during the update process:'), error);
