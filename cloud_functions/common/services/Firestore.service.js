@@ -55,6 +55,15 @@ class FirestoreService {
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
 
+    async getPredictionsByIds(predictionIds) {
+        if (!predictionIds || predictionIds.length === 0) {
+            return [];
+        }
+        const docRefs = predictionIds.map(id => this.predictionsCollection.doc(id));
+        const docSnapshots = await this.firestore.getAll(...docRefs);
+        return docSnapshots.map(doc => ({ id: doc.id, ...doc.data() })).filter(doc => doc.fixtureId); // filter out empty docs
+    }
+
     async getPredictionsFromDateRange(startDate, endDate) {
         const snapshot = await this.predictionsCollection
             .where('matchDate', '>=', startDate.toISOString())
@@ -76,6 +85,17 @@ class FirestoreService {
             .where('date', '==', dateStr)
             .where('title', '==', "The Oracle's Choice")
             .where('status', '==', 'PENDING')
+            .get();
+        
+        if (snapshot.empty) {
+            return [];
+        }
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+
+    async getTicketsByDate(dateStr) {
+        const snapshot = await this.ticketsCollection
+            .where('date', '==', dateStr)
             .get();
         
         if (snapshot.empty) {
