@@ -1,91 +1,93 @@
 const functions = require('@google-cloud/functions-framework');
+const { Firestore } = require('@google-cloud/firestore');
 const chalk = require('chalk');
-const { firestoreService } = require('./common/services/Firestore.service');
+
+const firestore = new Firestore();
 
 functions.http('runTicketResultsChecker', async (req, res) => {
-    console.log(chalk.blue.bold("--- Démarrage du Job de Vérification des Résultats de Tickets ---"));
+    console.log(chalk.blue.bold("--- Démarrage du Job de Vérification des Tickets (Logique Mensuelle Stricte) ---"));
+
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    console.log(chalk.white(`   -> Période de traitement : du ${startDateStr} au ${endDateStr}`));
 
     try {
-        // Check for tickets from today and yesterday to cover all recent matches
-        const datesToCheck = [
-            new Date().toISOString().split('T')[0],
-            new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0]
-        ];
+        const ticketsSnapshot = await firestore.collection('tickets')
+            .where('date', '>=', startDateStr)
+            .where('date', '<=', endDateStr)
+            .get();
 
-        let totalTicketsUpdated = 0;
+        const allMonthTickets = ticketsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log(chalk.cyan(`   -> ${allMonthTickets.length} ticket(s) trouvés pour le mois.`));
 
-        for (const dateStr of datesToCheck) {
-            console.log(chalk.cyan(`Vérification des tickets pour le ${dateStr}...`));
-            const tickets = await firestoreService.getTicketsByDate(dateStr);
+        const predictionsSnapshot = await firestore.collection('predictions')
+            .where('matchDate', '>=', startDate.toISOString())
+            .where('matchDate', '<=', endDate.toISOString())
+            .get();
 
-            if (tickets.length === 0) {
-                console.log(chalk.gray(`   -> Aucun ticket trouvé pour le ${dateStr}.`));
-                continue;
-            }
+        const allMonthPredictions = predictionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        console.log(chalk.cyan(`   -> ${allMonthPredictions.length} prédiction(s) trouvée(s) pour le mois.`));
 
-            console.log(chalk.white(`   -> ${tickets.length} ticket(s) trouvé(s).`));
+        const resultsMap = new Map(allMonthPredictions.map(p => [p.id, p.result]));
+        const ticketsToUpdate = [];
 
-            for (const ticket of tickets) {
-                console.log(chalk.blue(`   --- Traitement du Ticket ${ticket.id} (Statut actuel: ${ticket.status}) ---`));
-                console.log(chalk.gray('--- Structure du Ticket ---'));
-                console.log(JSON.stringify(ticket, null, 2));
-                console.log(chalk.gray('--- Fin de la Structure ---'));
-                let newStatus = 'won';
-                let reason = 'Tous les paris sont gagnants.';
-
-                if (!ticket.bets || ticket.bets.length === 0) {
-                    console.log(chalk.yellow(`      -> Le ticket n'a aucun pari.`));
-                    console.log(chalk.blue(`   --- Fin du traitement du Ticket ${ticket.id} ---`));
-                    continue;
-                }
-
-                const predictionIds = ticket.bets.map(b => b.id).filter(id => id);
-                if (predictionIds.length === 0) {
-                    console.log(chalk.yellow(`      -> Impossible de trouver les IDs des paris pour ce ticket.`));
-                    console.log(chalk.blue(`   --- Fin du traitement du Ticket ${ticket.id} ---`));
-                    continue;
-                }
-
-                const latestPredictions = await firestoreService.getPredictionsByIds(predictionIds);
-                const latestPredictionsMap = new Map(latestPredictions.map(p => [p.id, p]));
+        for (const ticket of allMonthTickets) {
+            if (ticket.status === 'PENDING') {
+                let allBetsResolved = true;
+                let isLost = false;
+                let needsUpdate = false;
 
                 for (const bet of ticket.bets) {
-                    const latestPrediction = latestPredictionsMap.get(bet.id);
-                    const latestResult = latestPrediction ? latestPrediction.result : 'UNKNOWN';
-
-                    const betInfo = `${bet.home_team?.name || 'Equipe Inconnue'} vs ${bet.away_team?.name || 'Equipe Inconnue'} - ${bet.market}`;
-                    console.log(chalk.white(`      - Pari: ${betInfo}, Résultat du ticket: ${bet.result || 'NON DISPONIBLE'}, Résultat à jour: ${latestResult || 'NON DISPONIBLE'}`));
-
-                    if (latestResult === 'LOST') {
-                        newStatus = 'lost';
-                        reason = `Le pari "${betInfo}" est perdant.`;
-                        break;
+                    const newResult = resultsMap.get(bet.id);
+                    if (newResult && newResult !== bet.result) {
+                        bet.result = newResult;
+                        needsUpdate = true;
                     }
-                    if (latestResult === null || latestResult === undefined || latestResult === 'UNKNOWN') {
-                        newStatus = 'PENDING';
-                        reason = `Le résultat à jour du pari "${betInfo}" n'est pas encore disponible.`;
-                        break;
+                    if (bet.result === 'LOST') {
+                        isLost = true;
+                    }
+                    if (!bet.result || bet.result === 'UNKNOWN' || bet.result === null) {
+                        allBetsResolved = false;
                     }
                 }
 
-                if (ticket.status !== newStatus && newStatus !== 'PENDING') {
-                    console.log(chalk.magenta.bold(`      -> Le statut du Ticket ${ticket.id} passe de ${ticket.status} à : ${newStatus.toUpperCase()}.`));
-                    await firestoreService.updateTicketStatus(ticket.id, newStatus);
-                    totalTicketsUpdated++;
-                } else {
-                    console.log(chalk.gray(`      -> Le statut du Ticket ${ticket.id} reste : ${ticket.status}. Raison: ${reason}`));
+                if (needsUpdate) {
+                    const originalStatus = ticket.status;
+                    if (isLost) {
+                        ticket.status = 'lost';
+                    } else if (allBetsResolved) {
+                        ticket.status = 'won';
+                    }
+                    
+                    if (ticket.status !== originalStatus) {
+                         ticketsToUpdate.push(ticket);
+                    }
                 }
-                console.log(chalk.blue(`   --- Fin du traitement du Ticket ${ticket.id} ---`));
             }
         }
+        
+        if (ticketsToUpdate.length > 0) {
+            console.log(chalk.magenta(`   -> ${ticketsToUpdate.length} ticket(s) à mettre à jour.`));
+            const batch = firestore.batch();
+            ticketsToUpdate.forEach(ticket => {
+                const docRef = firestore.collection('tickets').doc(ticket.id);
+                batch.update(docRef, { status: ticket.status, bets: ticket.bets });
+            });
+            await batch.commit();
+            console.log(chalk.green('   -> Mise à jour des tickets terminée.'));
+        } else {
+            console.log(chalk.gray('   -> Aucun ticket à mettre à jour.'));
+        }
 
-        const successMsg = `Vérification des tickets terminée. ${totalTicketsUpdated} ticket(s) mis à jour.`;
-        console.log(chalk.green.bold(`
---- ${successMsg} ---`));
-        res.status(200).send(successMsg);
+        console.log(chalk.green.bold("--- Job terminé avec succès. ---"));
+        res.status(200).send("Mise à jour des tickets terminée selon la logique mensuelle stricte.");
 
     } catch (error) {
-        console.error(chalk.red.bold('Une erreur est survenue durant la vérification des tickets:'), error);
-        res.status(500).send('Internal Server Error');
+        console.error(chalk.red.bold("Une erreur est survenue:"), error);
+        res.status(500).send("Erreur interne du serveur.");
     }
 });
