@@ -64,18 +64,19 @@ async function archiveAndReset() {
  * @param {Map<string, object>} charactersMap - A map of character objects.
  * @returns {string} - The HTML report as a string.
  */
-function generateHtmlReport(charactersMap) {
+function generateHtmlReport(charactersMap, processedTickets = []) {
     const characters = Array.from(charactersMap.values());
     const date = new Date().toLocaleString();
 
-    let rows = '';
+    // Character Stats Rows
+    let characterRows = '';
     characters.forEach(char => {
         const performance = char.performance.toFixed(2);
         const bankroll = char.bankroll.toFixed(2);
         const performanceClass = char.performance > 0 ? 'positive' : (char.performance < 0 ? 'negative' : '');
         const performanceString = char.performance > 0 ? `+${performance}` : performance;
 
-        rows += `
+        characterRows += `
             <tr>
                 <td>${char.name}</td>
                 <td>${char.progress}/${char.goal}</td>
@@ -88,6 +89,29 @@ function generateHtmlReport(charactersMap) {
         `;
     });
 
+    // Processed Tickets Rows
+    let ticketRows = '';
+    if (processedTickets.length > 0) {
+        processedTickets.forEach(ticket => {
+            const statusClass = ticket.status === 'won' ? 'positive' : 'negative';
+            let betsHtml = '';
+            if (ticket.bets && ticket.bets.length > 0) {
+                betsHtml = ticket.bets.map(bet => `<li>${bet.home_team?.name || 'N/A'} vs ${bet.away_team?.name || 'N/A'} (${bet.market})</li>`).join('');
+            }
+
+            ticketRows += `
+                <tr>
+                    <td>${ticket.date}</td>
+                    <td class="${statusClass}">${ticket.status.toUpperCase()}</td>
+                    <td>${ticket.totalOdd.toFixed(2)}</td>
+                    <td><ul>${betsHtml}</ul></td>
+                </tr>
+            `;
+        });
+    } else {
+        ticketRows = '<tr><td colspan="4">No processed tickets for this month.</td></tr>';
+    }
+
     return `
         <!DOCTYPE html>
         <html lang="en">
@@ -97,19 +121,22 @@ function generateHtmlReport(charactersMap) {
             <title>Architect Simulator Report</title>
             <style>
                 body { font-family: sans-serif; background-color: #121212; color: #E0E0E0; padding: 20px; }
-                h1, h2 { color: #00FF41; }
-                h2 { font-size: 1em; margin-bottom: 20px; }
-                table { width: 100%; border-collapse: collapse; }
+                h1, h2 { color: #00FF41; border-bottom: 2px solid #333; padding-bottom: 10px; margin-top: 40px; }
+                h2 { font-size: 1.5em; }
+                table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
                 th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #333; }
                 th { background-color: #1A1A1A; }
                 tr:nth-child(even) { background-color: #1C1C1C; }
                 .positive { color: #00FF41; }
                 .negative { color: #FF4136; }
+                ul { margin: 0; padding-left: 20px; }
             </style>
         </head>
         <body>
             <h1>Architect Simulator Report</h1>
-            <h2>Generated on: ${date}</h2>
+            <p>Generated on: ${date}</p>
+
+            <h2>Character Simulation</h2>
             <table>
                 <thead>
                     <tr>
@@ -123,7 +150,22 @@ function generateHtmlReport(charactersMap) {
                     </tr>
                 </thead>
                 <tbody>
-                    ${rows}
+                    ${characterRows}
+                </tbody>
+            </table>
+
+            <h2>Processed Tickets (The Oracle's Choice)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Total Odd</th>
+                        <th>Bets</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${ticketRows}
                 </tbody>
             </table>
         </body>
@@ -238,7 +280,7 @@ async function recalculateCurrentMonthStats() {
     await batch.commit();
     console.log(chalk.green.bold('\n--- Architect Simulator stats updated successfully in Firestore. ---'));
 
-    return charactersMap;
+    return { charactersMap, processedTickets };
 }
 
 
@@ -255,12 +297,12 @@ functions.http('runArchitectSimulatorUpdate', async (req, res) => {
         }
         
         // Recalculate the current month's stats every time.
-        const charactersMap = await recalculateCurrentMonthStats();
+        const result = await recalculateCurrentMonthStats();
 
         console.log(chalk.cyan.bold('--- Architect Simulator Updater Job Finished Successfully ---'));
         
-        if (charactersMap) {
-            const htmlReport = generateHtmlReport(charactersMap);
+        if (result && result.charactersMap) {
+            const htmlReport = generateHtmlReport(result.charactersMap, result.processedTickets);
             res.status(200).send(htmlReport);
         } else {
             res.status(200).send('Architect Simulator Updated Successfully, but no data was returned for the report.');
