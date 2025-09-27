@@ -64,7 +64,7 @@ async function archiveAndReset() {
  * @param {Map<string, object>} charactersMap - A map of character objects.
  * @returns {string} - The HTML report as a string.
  */
-function generateHtmlReport(charactersMap, processedTickets = []) {
+function generateHtmlReport(charactersMap, processedTickets = [], allMonthTickets = []) {
     const characters = Array.from(charactersMap.values());
     const date = new Date().toLocaleString();
 
@@ -112,6 +112,14 @@ function generateHtmlReport(charactersMap, processedTickets = []) {
         ticketRows = '<tr><td colspan="4">No processed tickets for this month.</td></tr>';
     }
 
+    // All Tickets JSON
+    let allTicketsJson = '';
+    if (allMonthTickets.length > 0) {
+        allTicketsJson = JSON.stringify(allMonthTickets, null, 2);
+    } else {
+        allTicketsJson = 'No tickets found for this month.';
+    }
+
     return `
         <!DOCTYPE html>
         <html lang="en">
@@ -124,12 +132,13 @@ function generateHtmlReport(charactersMap, processedTickets = []) {
                 h1, h2 { color: #00FF41; border-bottom: 2px solid #333; padding-bottom: 10px; margin-top: 40px; }
                 h2 { font-size: 1.5em; }
                 table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-                th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #333; }
+                th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #333; vertical-align: top; }
                 th { background-color: #1A1A1A; }
                 tr:nth-child(even) { background-color: #1C1C1C; }
                 .positive { color: #00FF41; }
                 .negative { color: #FF4136; }
                 ul { margin: 0; padding-left: 20px; }
+                pre { background-color: #1A1A1A; padding: 15px; border-radius: 5px; white-space: pre-wrap; word-wrap: break-word; }
             </style>
         </head>
         <body>
@@ -154,7 +163,7 @@ function generateHtmlReport(charactersMap, processedTickets = []) {
                 </tbody>
             </table>
 
-            <h2>Processed Tickets (The Oracle's Choice)</h2>
+            <h2>Processed Tickets (Used in Simulation)</h2>
             <table>
                 <thead>
                     <tr>
@@ -168,6 +177,10 @@ function generateHtmlReport(charactersMap, processedTickets = []) {
                     ${ticketRows}
                 </tbody>
             </table>
+
+            <h2>All Fetched Tickets (Raw Data)</h2>
+            <pre>${allTicketsJson}</pre>
+
         </body>
         </html>
     `;
@@ -280,7 +293,7 @@ async function recalculateCurrentMonthStats() {
     await batch.commit();
     console.log(chalk.green.bold('\n--- Architect Simulator stats updated successfully in Firestore. ---'));
 
-    return { charactersMap, processedTickets };
+    return { charactersMap, processedTickets, allMonthTickets };
 }
 
 
@@ -302,7 +315,7 @@ functions.http('runArchitectSimulatorUpdate', async (req, res) => {
         console.log(chalk.cyan.bold('--- Architect Simulator Updater Job Finished Successfully ---'));
         
         if (result && result.charactersMap) {
-            const htmlReport = generateHtmlReport(result.charactersMap, result.processedTickets);
+            const htmlReport = generateHtmlReport(result.charactersMap, result.processedTickets, result.allMonthTickets);
             res.status(200).send(htmlReport);
         } else {
             res.status(200).send('Architect Simulator Updated Successfully, but no data was returned for the report.');
