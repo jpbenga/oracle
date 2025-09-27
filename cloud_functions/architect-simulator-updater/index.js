@@ -237,7 +237,15 @@ async function recalculateCurrentMonthStats() {
         batch.set(docRef, char, { merge: true }); // Use set with merge to save the final state
     });
 
-    await batch.commit();\n    console.log(chalk.green.bold(\'\\n--- Architect Simulator stats updated successfully in Firestore. ---\'));\n\n    // 5. Generate HTML report\n    const htmlReport = generateHtmlReport(charactersMap);\n    const reportPath = path.join(\'/home/user/the-oracle-project\', \'simulation_results.html\');\n    fs.writeFileSync(reportPath, htmlReport);\n    console.log(chalk.blue.bold(`\\n--- HTML report generated at ${reportPath} ---\`));\n}
+    await batch.commit();
+    console.log(chalk.green.bold('\n--- Architect Simulator stats updated successfully in Firestore. ---'));
+
+    // 5. Generate HTML report
+    const htmlReport = generateHtmlReport(charactersMap);
+    const reportPath = path.join('/home/user/the-oracle-project', 'simulation_results.html');
+    fs.writeFileSync(reportPath, htmlReport);
+    console.log(chalk.blue.bold(`\n--- HTML report generated at ${reportPath} ---`));
+}
 
 
 functions.http('runArchitectSimulatorUpdate', async (req, res) => {
