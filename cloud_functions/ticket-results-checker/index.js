@@ -24,6 +24,15 @@ functions.http('runTicketResultsChecker', async (req, res) => {
         const allMonthTickets = ticketsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         console.log(chalk.cyan(`   -> ${allMonthTickets.length} ticket(s) trouvés pour le mois.`));
 
+        // Log de débogage pour voir les tickets récupérés
+        if (allMonthTickets.length > 0) {
+            console.log(chalk.yellow.bold('--- Début de la liste des tickets récupérés ---'));
+            allMonthTickets.forEach(ticket => {
+                console.log(chalk.yellow(`   - ID: ${ticket.id}, Date: ${ticket.date}, Statut: ${ticket.status}`));
+            });
+            console.log(chalk.yellow.bold('--- Fin de la liste des tickets récupérés ---'));
+        }
+
         const predictionsSnapshot = await firestore.collection('predictions')
             .where('matchDate', '>=', startDate.toISOString())
             .where('matchDate', '<=', endDate.toISOString())
@@ -36,6 +45,7 @@ functions.http('runTicketResultsChecker', async (req, res) => {
         const ticketsToUpdate = [];
 
         for (const ticket of allMonthTickets) {
+            // On ne traite que les tickets qui sont en attente de résultat
             if (ticket.status === 'PENDING') {
                 let allBetsResolved = true;
                 let isLost = false;
@@ -55,6 +65,7 @@ functions.http('runTicketResultsChecker', async (req, res) => {
                     }
                 }
 
+                // Si une mise à jour a eu lieu au niveau des paris, on évalue le statut global du ticket
                 if (needsUpdate) {
                     const originalStatus = ticket.status;
                     if (isLost) {
@@ -71,16 +82,17 @@ functions.http('runTicketResultsChecker', async (req, res) => {
         }
         
         if (ticketsToUpdate.length > 0) {
-            console.log(chalk.magenta(`   -> ${ticketsToUpdate.length} ticket(s) à mettre à jour.`));
+            console.log(chalk.magenta.bold(`   -> ${ticketsToUpdate.length} ticket(s) à mettre à jour.`));
             const batch = firestore.batch();
             ticketsToUpdate.forEach(ticket => {
                 const docRef = firestore.collection('tickets').doc(ticket.id);
+                console.log(chalk.magenta(`      - Mise à jour du ticket ${ticket.id} vers le statut : ${ticket.status.toUpperCase()}`));
                 batch.update(docRef, { status: ticket.status, bets: ticket.bets });
             });
             await batch.commit();
             console.log(chalk.green('   -> Mise à jour des tickets terminée.'));
         } else {
-            console.log(chalk.gray('   -> Aucun ticket à mettre à jour.'));
+            console.log(chalk.gray('   -> Aucun ticket nécessitant une mise à jour de statut.'));
         }
 
         console.log(chalk.green.bold("--- Job terminé avec succès. ---"));
