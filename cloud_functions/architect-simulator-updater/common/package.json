@@ -1,0 +1,10 @@
+{
+  "name": "common-services",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "axios": "^1.6.8",
+    "chalk": "^4.1.2",
+    "@google-cloud/firestore": "^7.7.0"
+  }
+}
