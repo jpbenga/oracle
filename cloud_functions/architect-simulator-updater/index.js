@@ -88,15 +88,29 @@ async function recalculateCurrentMonthStats() {
     const allMonthTickets = ticketsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     console.log(chalk.green(`   -> Found ${allMonthTickets.length} tickets for the current month.`));
 
-    console.log(chalk.blue.bold('--- Status of All Tickets Found ---'));
+    console.log(chalk.blue.bold('\n--- Matchs du mois ---'));
     allMonthTickets.forEach(ticket => {
-        console.log(`- ID: ${ticket.id}, Date: ${ticket.date}, Status: ${ticket.status}`);
+        if (ticket.bets && ticket.bets.length > 0) {
+            ticket.bets.forEach(bet => {
+                const homeTeam = bet.home_team?.name || 'N/A';
+                const awayTeam = bet.away_team?.name || 'N/A';
+                const market = bet.market || 'N/A';
+                console.log(`- ${homeTeam} vs ${awayTeam} (Marché: ${market})`);
+            });
+        }
     });
-    console.log(chalk.blue.bold('--- End of Ticket Status List ---'));
 
-    console.log(chalk.blue.bold('--- All Tickets Found (Full Structure) ---'));
-    console.log(JSON.stringify(allMonthTickets, null, 2));
-    console.log(chalk.blue.bold('--- End of Tickets ---'));
+    const oracleChoiceTickets = allMonthTickets.filter(t => t.title === "The Oracle's Choice");
+    if (oracleChoiceTickets.length > 0) {
+        console.log(chalk.magenta.bold('\n--- Le(s) Choix de l\'Oracle ---'));
+        oracleChoiceTickets.forEach(ticket => {
+            console.log(JSON.stringify(ticket, null, 2));
+        });
+    } else {
+        console.log(chalk.yellow('\n--- Aucun ticket "Le Choix de l\'Oracle" trouvé pour ce mois. ---'));
+    }
+
+
 
     // 2. Start with initial character state
     let characters = JSON.parse(JSON.stringify(initialCharacters)); // Deep copy
@@ -108,8 +122,7 @@ async function recalculateCurrentMonthStats() {
    -> Processing ${processedTickets.length} completed (won/lost) tickets...`));
 
     for (const ticket of processedTickets) {
-        console.log(chalk.green(`
-   --- Applying Ticket ${ticket.id} (Date: ${ticket.date}, Status: ${ticket.status}, Odd: ${ticket.totalOdd.toFixed(2)}) ---`));
+        console.log(chalk.green(`\n   --- Applying Ticket ${ticket.id} (Date: ${ticket.date}, Status: ${ticket.status}, Odd: ${ticket.totalOdd.toFixed(2)}) ---`));
         
         charactersMap.forEach(char => {
             const oldBankroll = char.bankroll;
@@ -123,17 +136,18 @@ async function recalculateCurrentMonthStats() {
                 if (char.progress >= char.goal) {
                     char.bankroll = char.initialBankroll;
                     char.progress = 0;
-                    console.log(chalk.magenta(`      --> ${char.name} reached goal! Bankroll reset. Old: ${oldBankroll.toFixed(2)}, New: ${char.bankroll.toFixed(2)}`));
-                } else {
-                    console.log(chalk.white(`      --> ${char.name} WON. Old Bankroll: ${oldBankroll.toFixed(2)}, New: ${char.bankroll.toFixed(2)}`));
                 }
             } else if (ticket.status === 'lost') {
                 char.performance -= char.bankroll;
                 char.bankroll = char.initialBankroll;
                 char.progress = 0;
                 char.losses++;
-                console.log(chalk.red(`      --> ${char.name} LOST. Bankroll reset. Old: ${oldBankroll.toFixed(2)}, New: ${char.bankroll.toFixed(2)}`));
             }
+        });
+
+        console.log(chalk.blue('    --- Stats after ticket ---'));
+        charactersMap.forEach(char => {
+            console.log(chalk.white(`    - ${char.name}: Bankroll=${char.bankroll.toFixed(2)}, Perf=${char.performance.toFixed(2)}, Wins=${char.progress}, Losses=${char.losses}`));
         });
     }
 

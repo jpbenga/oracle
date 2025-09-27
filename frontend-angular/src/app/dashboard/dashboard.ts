@@ -8,6 +8,7 @@ import { TicketsList } from '../components/tickets-list/tickets-list';
 import { ArchitectsSimulator } from '../components/architects-simulator/architects-simulator';
 import { EmptyStateComponent } from '../components/empty-state/empty-state.component';
 import { RawDataFlow } from '../components/raw-data-flow/raw-data-flow';
+import { LoaderComponent } from '../components/loader/loader.component';
 import { Ticket, TicketsApiResponse } from '../types/api-types';
 import { catchError, tap } from 'rxjs/operators';
 import { of } from 'rxjs';
@@ -22,7 +23,8 @@ import { of } from 'rxjs';
     TicketsList,
     ArchitectsSimulator,
     EmptyStateComponent,
-    RawDataFlow
+    RawDataFlow,
+    LoaderComponent
   ],
   templateUrl: './dashboard.html',
 })

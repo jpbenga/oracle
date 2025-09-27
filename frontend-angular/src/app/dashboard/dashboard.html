@@ -6,9 +6,9 @@
 
   <app-architects-simulator></app-architects-simulator>
   
-  <div *ngIf="isLoading" class="text-center mt-8">
-    <p class="text-lg">Chargement des données...</p>
-  </div>
+  <div *ngIf="isLoading">
+  <app-loader></app-loader>
+</div>
 
   <div *ngIf="error" class="w-full bg-[#0A0A0A] border border-[#FF0000] rounded-lg p-8 text-center flex flex-col items-center font-mono mt-8">
     <!-- Error Icon and Message -->
