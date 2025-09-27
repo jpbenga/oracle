@@ -11,17 +11,24 @@ import { Character, Ticket } from '@app/types/api-types';
 })
 export class CharacterHistoryModalComponent implements OnInit {
   @Input() character!: Character;
-  @Input() allMonthTickets: Ticket[] = [];
+  @Input() characterTickets: Ticket[] = [];
   @Output() close = new EventEmitter<void>();
 
-  characterTickets: Ticket[] = [];
-
   ngOnInit(): void {
-    // The simulation processes won/lost tickets. We display the same tickets here.
-    this.characterTickets = this.allMonthTickets.filter(t => t.status === 'won' || t.status === 'lost');
+    // The component now receives a pre-filtered list of tickets.
   }
 
   closeModal(): void {
     this.close.emit();
+  }
+
+  getTicketProfit(ticket: Ticket): number {
+    if (ticket.status === 'won') {
+      // Note: This assumes the bet amount for the progression is the character's initialBankroll
+      return (this.character.initialBankroll * ticket.totalOdd) - this.character.initialBankroll;
+    } else if (ticket.status === 'lost') {
+      return this.character.initialBankroll;
+    }
+    return 0;
   }
 }

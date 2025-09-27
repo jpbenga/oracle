@@ -5,11 +5,11 @@ const chalk = require('chalk');
 const firestore = firestoreService.firestore;
 
 const initialCharacters = [
-    { name: 'Cypher', goal: 1, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
-    { name: 'Morpheus', goal: 2, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
-    { name: 'Trinity', goal: 3, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
-    { name: 'Neo', goal: 4, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
-    { name: "L'Oracle", goal: 5, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 }
+    { name: 'Cypher', goal: 1, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0, totalWins: 0 },
+    { name: 'Morpheus', goal: 2, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0, totalWins: 0 },
+    { name: 'Trinity', goal: 3, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0, totalWins: 0 },
+    { name: 'Neo', goal: 4, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0, totalWins: 0 },
+    { name: "L'Oracle", goal: 5, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0, totalWins: 0 }
 ];
 
 /**
@@ -117,7 +117,7 @@ async function recalculateCurrentMonthStats() {
     const charactersMap = new Map(characters.map(c => [c.name, c]));
 
     // 3. Process each ticket chronologically
-    const processedTickets = allMonthTickets.filter(t => t.status === 'won' || t.status === 'lost');
+    const processedTickets = allMonthTickets.filter(t => (t.status === 'won' || t.status === 'lost') && t.title === "The Oracle's Choice");
     console.log(chalk.cyan(`
    -> Processing ${processedTickets.length} completed (won/lost) tickets...`));
 
@@ -126,20 +126,20 @@ async function recalculateCurrentMonthStats() {
         
         charactersMap.forEach(char => {
             if (ticket.status === 'won') {
-                const newBankroll = char.bankroll * ticket.totalOdd;
-                const profit = newBankroll - char.bankroll;
-                char.bankroll = newBankroll;
-                char.progress++;
+                const profit = (char.initialBankroll * ticket.totalOdd) - char.initialBankroll;
                 char.performance += profit;
+                char.bankroll += profit;
+                char.progress++;
+                char.totalWins++;
 
                 if (char.progress >= char.goal) {
                     console.log(chalk.magenta(`      -> ${char.name} a atteint son objectif de ${char.goal} victoires! Le cycle recommence.`));
-                    char.bankroll = char.initialBankroll;
                     char.progress = 0;
                 }
             } else if (ticket.status === 'lost') {
-                char.performance -= char.bankroll;
-                char.bankroll = char.initialBankroll;
+                const lossAmount = char.initialBankroll;
+                char.performance -= lossAmount;
+                char.bankroll -= lossAmount;
                 char.progress = 0;
                 char.losses++;
             }

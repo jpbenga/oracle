@@ -46,6 +46,7 @@ export interface Character {
   progress: number; // Represents wins
   losses: number;
   performance: number;
+  totalWins: number;
 }
 
 

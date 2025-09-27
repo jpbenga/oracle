@@ -19,6 +19,7 @@ export class ArchitectsSimulator implements OnInit {
 
   characters$!: Observable<Character[]>;
   allMonthTickets: Ticket[] = [];
+  processedOracleTickets: Ticket[] = [];
   selectedCharacter: Character | null = null;
 
   otherCharactersVisible = false;
@@ -30,20 +31,26 @@ export class ArchitectsSimulator implements OnInit {
   }
 
   private initialCharacters: Character[] = [
-    { name: 'Cypher', goal: 1, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
-    { name: 'Morpheus', goal: 2, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
-    { name: 'Trinity', goal: 3, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
-    { name: 'Neo', goal: 4, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
-    { name: "L'Oracle", goal: 5, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 }
+    { name: 'Cypher', goal: 1, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0, totalWins: 0 },
+    { name: 'Morpheus', goal: 2, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0, totalWins: 0 },
+    { name: 'Trinity', goal: 3, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0, totalWins: 0 },
+    { name: 'Neo', goal: 4, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0, totalWins: 0 },
+    { name: "L'Oracle", goal: 5, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0, totalWins: 0 }
   ];
 
   ngOnInit(): void {
     this.characters$ = this.apiService.getSimulationCharacters().pipe(
-      map(characters => characters.length > 0 ? characters : this.initialCharacters)
+      map(characters => {
+        const chars = characters.length > 0 ? characters : this.initialCharacters;
+        return chars.sort((a, b) => a.goal - b.goal);
+      })
     );
 
     this.apiService.getTicketsForCurrentMonth().subscribe(tickets => {
       this.allMonthTickets = tickets;
+      this.processedOracleTickets = tickets.filter(t => 
+        (t.status === 'won' || t.status === 'lost') && t.title === "The Oracle's Choice"
+      );
     });
   }
 

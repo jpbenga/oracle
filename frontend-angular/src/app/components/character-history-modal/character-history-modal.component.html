@@ -2,34 +2,60 @@
     <div class="modal-content" (click)="$event.stopPropagation()">
       <!-- Header -->
       <div class="modal-header">
-        <h2 class="text-xl font-bold text-[#00FF41]">Historique de {{ character.name }}</h2>
-        <button (click)="closeModal()" class="close-button">&times;</button>
+        <h3 class="text-sm font-mono text-[#666]">
+          HISTORIQUE MENSUEL // {{ character.name | uppercase }}
+        </h3>
+        <button (click)="closeModal()" class="close-button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
   
       <!-- Body -->
       <div class="modal-body">
         <ng-container *ngIf="characterTickets.length > 0; else noHistory">
-          <div *ngFor="let ticket of characterTickets" class="ticket-history-item border-b border-[#222] py-3">
-            <div class="flex justify-between items-center">
-              <span class="font-mono text-xs">{{ ticket.date }}</span>
-              <span class="font-bold text-lg"
-                    [ngClass]="{'text-green-500': ticket.status === 'won', 'text-red-500': ticket.status === 'lost'}">
-                {{ ticket.status === 'won' ? '+' : '-' }}{{ (ticket.status === 'won' ? (character.initialBankroll * ticket.totalOdd - character.initialBankroll) : character.initialBankroll) | number:'1.2-2' }}€
-              </span>
-            </div>
-            <div class="text-xs text-gray-400 mt-1">Cote totale: {{ ticket.totalOdd | number:'1.2-2' }}</div>
-            <!-- Bets details -->
-            <div class="mt-2 pl-2 border-l-2 border-[#00FF41]">
-                <div *ngFor="let bet of ticket.bets" class="text-xs text-gray-300">
-                    {{ bet.home_team.name }} vs {{ bet.away_team.name }} ({{ bet.market }})
-                </div>
-            </div>
-          </div>
+            <table class="w-full border-collapse font-mono text-xs">
+                <thead class="text-[#666]">
+                  <tr class="border-b border-[#222]">
+                    <th class="p-2 text-left">DATE</th>
+                    <th class="p-2 text-left">STATUT</th>
+                    <th class="p-2 text-left">BILAN</th>
+                    <th class="p-2 text-left">COTE</th>
+                    <th class="p-2 text-left">PARIS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                    <tr *ngFor="let ticket of characterTickets" class="border-b border-[#111]"
+                        [ngClass]="{
+                            'ticket-won': ticket.status === 'won',
+                            'ticket-lost': ticket.status === 'lost'
+                        }">
+                        <td class="p-2 align-top">{{ ticket.date }}</td>
+                        <td class="p-2 align-top">
+                            <span class="font-bold"
+                                [ngClass]="{'text-green-400': ticket.status === 'won', 'text-red-400': ticket.status === 'lost'}">
+                                {{ ticket.status | uppercase }}
+                            </span>
+                        </td>
+                        <td class="p-2 align-top font-bold"
+                            [ngClass]="{'text-green-400': ticket.status === 'won', 'text-red-400': ticket.status === 'lost'}">
+                            {{ ticket.status === 'won' ? '+' : '-' }}{{ getTicketProfit(ticket) | number:'1.2-2' }}€
+                        </td>
+                        <td class="p-2 align-top">{{ ticket.totalOdd | number:'1.2-2' }}</td>
+                        <td class="p-2 align-top">
+                            <div *ngFor="let bet of ticket.bets" class="text-gray-300">
+                                - {{ bet.home_team?.name }} vs {{ bet.away_team?.name }} ({{ bet.market }})
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </ng-container>
         <ng-template #noHistory>
-          <p class="text-gray-400 text-center py-8">Aucun ticket gagné ou perdu ce mois-ci pour ce personnage.</p>
+            <div class="text-center p-8 text-[#666]">
+                <p>Aucun ticket 'The Oracle\'s Choice' gagné ou perdu ce mois-ci.</p>
+            </div>
         </ng-template>
       </div>
     </div>
-  </div>
+</div>
   
