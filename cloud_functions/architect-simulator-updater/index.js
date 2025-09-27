@@ -1,5 +1,5 @@
 const functions = require('@google-cloud/functions-framework');
-const { firestoreService } = require('./common/services/Firestore.service');
+const { firestoreService } = require('../common/services/Firestore.service');
 const chalk = require('chalk');
 
 const firestore = firestoreService.firestore;
