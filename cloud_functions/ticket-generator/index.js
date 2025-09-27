@@ -297,15 +297,18 @@ functions.http('runTicketGenerator', async (req, res) => {
         }
         
         console.log(chalk.magenta.bold(`   -> Sauvegarde de ${bestTickets.length} tickets dans Firestore...`));
+        let index = 0;
         for (const ticket of bestTickets) {
+            const isBestBet = index === 0;
             const ticketData = {
-                title: "The Oracle's Choice",
+                title: isBestBet ? "The Oracle's Choice" : `Architect's Bet #${index + 1}`,
                 totalOdd: ticket.totalOdd,
                 date: targetDateStr, // Utiliser la date cible
                 status: 'PENDING',
                 bets: ticket.bets
             };
             await firestoreService.saveTicket(ticketData);
+            index++;
         }
         
         generatedTickets = bestTickets;

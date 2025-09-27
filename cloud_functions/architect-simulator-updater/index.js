@@ -250,11 +250,32 @@ async function recalculateCurrentMonthStats() {
    -> Processing ${processedTickets.length} completed (won/lost) tickets...`));
 
     for (const ticket of processedTickets) {
-        console.log(chalk.green(`\n   --- Applying Ticket ${ticket.id} (Date: ${ticket.date}, Status: ${ticket.status}, Odd: ${ticket.totalOdd.toFixed(2)}) ---`));
+        let simulationTicket = ticket;
+
+        // If the ticket is The Oracle's Choice and has multiple bets, find the best one.
+        if (ticket.title === "The Oracle's Choice" && ticket.bets.length > 1) {
+            console.log(chalk.yellow(`   -> Found multi-bet "Oracle's Choice" ticket (${ticket.id}). Selecting the best bet for simulation.`));
+            
+            const bestBet = ticket.bets.reduce((best, current) => {
+                return (current.quality > best.quality) ? current : best;
+            }, ticket.bets[0]);
+
+            // Create a virtual ticket for the simulation using only the best bet.
+            simulationTicket = {
+                ...ticket, // Copy original ticket properties
+                totalOdd: bestBet.odd, // Override totalOdd with the best bet's odd
+                bets: [bestBet], // The ticket now virtually contains only the best bet
+                originalTicketId: ticket.id // Keep track of the original ticket
+            };
+
+            console.log(chalk.yellow(`      -> Best bet selected: ${bestBet.market} with odd ${bestBet.odd.toFixed(2)} and quality ${(bestBet.quality * 100).toFixed(2)}%`));
+        }
+
+        console.log(chalk.green(`\n   --- Applying Ticket ${simulationTicket.id} (Date: ${simulationTicket.date}, Status: ${simulationTicket.status}, Odd: ${simulationTicket.totalOdd.toFixed(2)}) ---`));
         
         charactersMap.forEach(char => {
-            if (ticket.status === 'won') {
-                const profit = (char.initialBankroll * ticket.totalOdd) - char.initialBankroll;
+            if (simulationTicket.status === 'won') {
+                const profit = (char.initialBankroll * simulationTicket.totalOdd) - char.initialBankroll;
                 char.performance += profit;
                 char.bankroll += profit;
                 char.progress++;
@@ -264,7 +285,7 @@ async function recalculateCurrentMonthStats() {
                     console.log(chalk.magenta(`      -> ${char.name} a atteint son objectif de ${char.goal} victoires! Le cycle recommence.`));
                     char.progress = 0;
                 }
-            } else if (ticket.status === 'lost') {
+            } else if (simulationTicket.status === 'lost') {
                 const lossAmount = char.initialBankroll;
                 char.performance -= lossAmount;
                 char.bankroll -= lossAmount;
