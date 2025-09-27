@@ -1,6 +1,8 @@
 const functions = require('@google-cloud/functions-framework');
 const { firestoreService } = require('./common/services/Firestore.service');
 const chalk = require('chalk');
+const fs = require('fs');
+const path = require('path');
 
 const firestore = firestoreService.firestore;
 
@@ -56,6 +58,79 @@ async function archiveAndReset() {
     await batch.commit();
     console.log(chalk.green('   -> All characters have been reset in Firestore.'));
     console.log(chalk.green('Archiving and reset complete.'));
+}
+
+
+/**
+ * Generates an HTML report from the character statistics.
+ * @param {Map<string, object>} charactersMap - A map of character objects.
+ * @returns {string} - The HTML report as a string.
+ */
+function generateHtmlReport(charactersMap) {
+    const characters = Array.from(charactersMap.values());
+    const date = new Date().toLocaleString();
+
+    let rows = '';
+    characters.forEach(char => {
+        const performance = char.performance.toFixed(2);
+        const bankroll = char.bankroll.toFixed(2);
+        const performanceClass = char.performance > 0 ? 'positive' : (char.performance < 0 ? 'negative' : '');
+        const performanceString = char.performance > 0 ? `+${performance}` : performance;
+
+        rows += `
+            <tr>
+                <td>${char.name}</td>
+                <td>${char.progress}/${char.goal}</td>
+                <td>${bankroll}€</td>
+                <td>${char.initialBankroll}€</td>
+                <td class="${performanceClass}">${performanceString}€</td>
+                <td>${char.totalWins}</td>
+                <td>${char.losses}</td>
+            </tr>
+        `;
+    });
+
+    return `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Architect Simulator Report</title>
+            <style>
+                body { font-family: sans-serif; background-color: #121212; color: #E0E0E0; padding: 20px; }
+                h1, h2 { color: #00FF41; }
+                h2 { font-size: 1em; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; }
+                th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #333; }
+                th { background-color: #1A1A1A; }
+                tr:nth-child(even) { background-color: #1C1C1C; }
+                .positive { color: #00FF41; }
+                .negative { color: #FF4136; }
+            </style>
+        </head>
+        <body>
+            <h1>Architect Simulator Report</h1>
+            <h2>Generated on: ${date}</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Character</th>
+                        <th>Progress</th>
+                        <th>Bankroll</th>
+                        <th>Initial Bankroll</th>
+                        <th>Performance</th>
+                        <th>Wins</th>
+                        <th>Losses</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows}
+                </tbody>
+            </table>
+        </body>
+        </html>
+    `;
 }
 
 /**
@@ -162,9 +237,7 @@ async function recalculateCurrentMonthStats() {
         batch.set(docRef, char, { merge: true }); // Use set with merge to save the final state
     });
 
-    await batch.commit();
-    console.log(chalk.green.bold('\n--- Architect Simulator stats updated successfully in Firestore. ---'));
-}
+    await batch.commit();\n    console.log(chalk.green.bold(\'\\n--- Architect Simulator stats updated successfully in Firestore. ---\'));\n\n    // 5. Generate HTML report\n    const htmlReport = generateHtmlReport(charactersMap);\n    const reportPath = path.join(\'/home/user/the-oracle-project\', \'simulation_results.html\');\n    fs.writeFileSync(reportPath, htmlReport);\n    console.log(chalk.blue.bold(`\\n--- HTML report generated at ${reportPath} ---\`));\n}
 
 
 functions.http('runArchitectSimulatorUpdate', async (req, res) => {
