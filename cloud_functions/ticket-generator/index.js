@@ -276,10 +276,25 @@ functions.http('runTicketGenerator', async (req, res) => {
             continue;
         }
 
-        let bestTickets = allPossibleTickets
-            .sort((a, b) => b.compositeScore - a.compositeScore)
-            .slice(0, 3)
-            .map(ticket => ({ bets: ticket.bets, totalOdd: ticket.totalOdd })); // Retirer compositeScore pour sauvegarde
+        const sortedTickets = allPossibleTickets.sort((a, b) => b.compositeScore - a.compositeScore);
+        const bestTickets = [];
+        const usedPredictionIds = new Set();
+
+        for (const ticket of sortedTickets) {
+            if (bestTickets.length >= 3) break;
+
+            // Utiliser l'ID unique de la prédiction pour la vérification
+            const hasConflict = ticket.bets.some(bet => usedPredictionIds.has(bet.id));
+
+            if (!hasConflict) {
+                const ticketToAdd = { 
+                    bets: ticket.bets, 
+                    totalOdd: ticket.totalOdd 
+                };
+                bestTickets.push(ticketToAdd);
+                ticket.bets.forEach(bet => usedPredictionIds.add(bet.id));
+            }
+        }
         
         console.log(chalk.magenta.bold(`   -> Sauvegarde de ${bestTickets.length} tickets dans Firestore...`));
         for (const ticket of bestTickets) {
