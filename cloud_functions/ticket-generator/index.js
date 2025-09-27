@@ -168,8 +168,8 @@ function generateTicketsHtml(tickets, sortedEligible) {
 
 function generateTicketsForDay(predictions) {
     console.log(`   -> [generateTicketsForDay] Démarrage avec ${predictions.length} prédictions.`);
-    const MIN_ODD = 1.88;
-    const MAX_ODD = 2.25;
+    const MIN_ODD = 1.7;
+    const MAX_ODD = 2.05;
     const MIN_QUALITY = 0.5; // Seuil minimal pour qu'un pronostic soit éligible (sur une échelle de 0-1)
     const MIN_CONFIDENCE = 70; // Confiance minimale en %
     let allPossibleTickets = [];
@@ -202,7 +202,7 @@ function generateTicketsForDay(predictions) {
     }
     console.log(`   -> [generateTicketsForDay] ${allPossibleTickets.length} tickets simples créés (cote entre ${MIN_ODD} et ${MAX_ODD}).`);
 
-    const MIN_ODD_FOR_COMBOS = 1.35;
+    const MIN_ODD_FOR_COMBOS = 1.3;
     const predictionsForCombos = eligiblePredictions.filter(p => p.odd >= MIN_ODD_FOR_COMBOS);
     console.log(`   -> [generateTicketsForDay] ${predictionsForCombos.length} prédictions disponibles pour les combinés (cote >= ${MIN_ODD_FOR_COMBOS}).`);
 
@@ -211,7 +211,7 @@ function generateTicketsForDay(predictions) {
         console.log(`   -> [generateTicketsForDay] ${combosOfTwo.length} combinaisons de 2 possibles.`);
 
         for (const combo of combosOfTwo) {
-            if (combo[0].fixtureId === combo[1].fixtureId) continue;
+            if (combo[0].fixtureId === combo[1].fixtureId && combo[0].market === combo[1].market) continue;
 
             const totalOdd = combo.reduce((acc, p) => acc * p.odd, 1);
             if (totalOdd >= MIN_ODD && totalOdd <= MAX_ODD) {
