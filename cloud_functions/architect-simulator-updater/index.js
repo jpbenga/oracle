@@ -1,8 +1,8 @@
 const functions = require('@google-cloud/functions-framework');
-const { Firestore } = require('@google-cloud/firestore');
+const { firestoreService } = require('./common/services/Firestore.service');
 const chalk = require('chalk');
 
-const firestore = new Firestore();
+const firestore = firestoreService.firestore;
 
 const initialCharacters = [
     { name: 'Cypher', goal: 1, bankroll: 20, initialBankroll: 20, progress: 0, losses: 0, performance: 0 },
