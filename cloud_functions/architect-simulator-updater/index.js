@@ -77,6 +77,7 @@ async function recalculateCurrentMonthStats() {
     const ticketsSnapshot = await ticketsRef
         .where('date', '>=', startDateStr)
         .where('date', '<=', endDateStr)
+        .orderBy('date', 'asc') // Process chronologically
         .get();
 
     if (ticketsSnapshot.empty) {
@@ -124,7 +125,6 @@ async function recalculateCurrentMonthStats() {
         console.log(chalk.green(`\n   --- Applying Ticket ${ticket.id} (Date: ${ticket.date}, Status: ${ticket.status}, Odd: ${ticket.totalOdd.toFixed(2)}) ---`));
         
         charactersMap.forEach(char => {
-            const oldBankroll = char.bankroll;
             if (ticket.status === 'won') {
                 const newBankroll = char.bankroll * ticket.totalOdd;
                 const profit = newBankroll - char.bankroll;
@@ -133,6 +133,7 @@ async function recalculateCurrentMonthStats() {
                 char.performance += profit;
 
                 if (char.progress >= char.goal) {
+                    console.log(chalk.magenta(`      -> ${char.name} a atteint son objectif de ${char.goal} victoires! Le cycle recommence.`));
                     char.bankroll = char.initialBankroll;
                     char.progress = 0;
                 }
@@ -146,7 +147,8 @@ async function recalculateCurrentMonthStats() {
 
         console.log(chalk.blue('    --- Stats after ticket ---'));
         charactersMap.forEach(char => {
-            console.log(chalk.white(`    - ${char.name}: Bankroll=${char.bankroll.toFixed(2)}, Perf=${char.performance.toFixed(2)}, Wins=${char.progress}, Losses=${char.losses}`));
+            const perfString = char.performance >= 0 ? `+${char.performance.toFixed(2)}` : char.performance.toFixed(2);
+            console.log(chalk.white(`    - ${char.name} | Objectif: ${char.progress}/${char.goal} | Bankroll: ${char.bankroll.toFixed(2)} (Initial: ${char.initialBankroll}) | Performance: ${perfString} | Défaites: ${char.losses}`));
         });
     }
 
@@ -154,7 +156,8 @@ async function recalculateCurrentMonthStats() {
     console.log(chalk.blue.bold('\n--- Final Character Stats for the Month ---'));
     const batch = firestore.batch();
     charactersMap.forEach(char => {
-        console.log(chalk.white(`- ${char.name}: Bankroll=${char.bankroll.toFixed(2)}, Perf=${char.performance.toFixed(2)}, Wins=${char.progress}, Losses=${char.losses}`));
+        const perfString = char.performance >= 0 ? `+${char.performance.toFixed(2)}` : char.performance.toFixed(2);
+        console.log(chalk.white(`- ${char.name} | Objectif: ${char.progress}/${char.goal} | Bankroll: ${char.bankroll.toFixed(2)} (Initial: ${char.initialBankroll}) | Performance: ${perfString} | Défaites: ${char.losses}`));
         const docRef = firestore.collection('simulation_characters').doc(char.name);
         batch.set(docRef, char, { merge: true }); // Use set with merge to save the final state
     });

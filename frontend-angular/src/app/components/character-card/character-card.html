@@ -1,4 +1,4 @@
-<div class="bg-[#0F0F0F] border border-[#222] rounded-lg p-3 flex flex-col">
+<button (click)="onCardClick()" class="character-card-button bg-[#0F0F0F] border border-[#222] rounded-lg p-3 flex flex-col text-left w-full">
     <!-- Character Name -->
     <div class="flex justify-between items-center mb-2">
       <h3 class="font-bold text-[#00FF41]">{{ character.name }}</h3>
@@ -31,4 +31,4 @@
         {{ character.performance > 0 ? '+' : '' }}{{ character.performance | number:'1.2-2' }}€
       </span>
     </div>
-  </div>
+</button>

@@ -1,0 +1,35 @@
+<div class="modal-overlay" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <!-- Header -->
+      <div class="modal-header">
+        <h2 class="text-xl font-bold text-[#00FF41]">Historique de {{ character.name }}</h2>
+        <button (click)="closeModal()" class="close-button">&times;</button>
+      </div>
+  
+      <!-- Body -->
+      <div class="modal-body">
+        <ng-container *ngIf="characterTickets.length > 0; else noHistory">
+          <div *ngFor="let ticket of characterTickets" class="ticket-history-item border-b border-[#222] py-3">
+            <div class="flex justify-between items-center">
+              <span class="font-mono text-xs">{{ ticket.date }}</span>
+              <span class="font-bold text-lg"
+                    [ngClass]="{'text-green-500': ticket.status === 'won', 'text-red-500': ticket.status === 'lost'}">
+                {{ ticket.status === 'won' ? '+' : '-' }}{{ (ticket.status === 'won' ? (character.initialBankroll * ticket.totalOdd - character.initialBankroll) : character.initialBankroll) | number:'1.2-2' }}€
+              </span>
+            </div>
+            <div class="text-xs text-gray-400 mt-1">Cote totale: {{ ticket.totalOdd | number:'1.2-2' }}</div>
+            <!-- Bets details -->
+            <div class="mt-2 pl-2 border-l-2 border-[#00FF41]">
+                <div *ngFor="let bet of ticket.bets" class="text-xs text-gray-300">
+                    {{ bet.home_team.name }} vs {{ bet.away_team.name }} ({{ bet.market }})
+                </div>
+            </div>
+          </div>
+        </ng-container>
+        <ng-template #noHistory>
+          <p class="text-gray-400 text-center py-8">Aucun ticket gagné ou perdu ce mois-ci pour ce personnage.</p>
+        </ng-template>
+      </div>
+    </div>
+  </div>
+  

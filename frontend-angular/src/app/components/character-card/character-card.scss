@@ -1,0 +1,9 @@
+.character-card-button {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+
+    &:hover {
+        cursor: pointer;
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0, 255, 65, 0.1);
+    }
+}

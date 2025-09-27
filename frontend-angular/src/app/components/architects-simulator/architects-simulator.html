@@ -19,7 +19,7 @@
              class="card-wrapper" 
              [class.first-card-wrapper]="i === 0">
 
-          <app-character-card [character]="char"></app-character-card>
+          <app-character-card [character]="char" (cardClick)="onCharacterCardClick(char)"></app-character-card>
 
           <div *ngIf="i === 0 && isMobile && characters.length > 1" 
                (click)="toggleMatrix()" 
@@ -43,3 +43,11 @@
     <!-- History is now always visible below -->
     <app-simulation-history></app-simulation-history>
 </div>
+
+<!-- Character History Modal -->
+<app-character-history-modal 
+    *ngIf="selectedCharacter"
+    [character]="selectedCharacter"
+    [allMonthTickets]="allMonthTickets"
+    (close)="closeHistoryModal()">
+</app-character-history-modal>

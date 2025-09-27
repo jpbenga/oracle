@@ -60,6 +60,33 @@ export class ApiService {
     return this.createRealtimeObservable<Ticket>(ticketsCollection, date);
   }
 
+  getTicketsForCurrentMonth(): Observable<Ticket[]> {
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    const ticketsQuery = query(
+      collection(this.firestore, 'tickets'),
+      where('date', '>=', firstDayOfMonth.toISOString().split('T')[0]),
+      where('date', '<=', lastDayOfMonth.toISOString().split('T')[0])
+    );
+
+    return new Observable<Ticket[]>(observer => {
+      const unsubscribe = onSnapshot(ticketsQuery, (querySnapshot) => {
+        const tickets: Ticket[] = [];
+        querySnapshot.forEach((doc) => {
+          tickets.push({ id: doc.id, ...doc.data() } as unknown as Ticket);
+        });
+        observer.next(tickets);
+      }, (error) => {
+        console.error("[ApiService] Error fetching monthly tickets:", error);
+        observer.error(error);
+      });
+
+      return () => unsubscribe();
+    });
+  }
+
   getMonthlyOracleTickets(selectedDayOffset: number): Observable<Ticket[]> {
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + selectedDayOffset);
