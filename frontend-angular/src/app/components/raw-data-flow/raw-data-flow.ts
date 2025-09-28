@@ -4,11 +4,12 @@ import { Observable, map } from 'rxjs';
 import { MarketTranslatePipe } from '@app/pipes/market-translate.pipe';
 import { Prediction, ShortlistResponse } from '@app/types/api-types';
 import { FirestoreService } from '@app/services/firestore.service';
+import { LoaderComponent } from '@app/components/loader/loader.component';
 
 @Component({
   selector: 'app-raw-data-flow',
   standalone: true,
-  imports: [CommonModule, MarketTranslatePipe],
+  imports: [CommonModule, MarketTranslatePipe, LoaderComponent],
   templateUrl: './raw-data-flow.html',
   styleUrls: ['./raw-data-flow.scss']
 })

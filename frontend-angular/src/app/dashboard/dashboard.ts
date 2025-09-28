@@ -27,6 +27,7 @@ import { of } from 'rxjs';
     LoaderComponent
   ],
   templateUrl: './dashboard.html',
+  styleUrls: ['./dashboard.scss']
 })
 export class Dashboard implements OnInit {
   ticketsData: TicketsApiResponse = {};

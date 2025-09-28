@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, ElementRef, ViewChild } from '@angular/core';
+import { Component, AfterViewInit, ElementRef, ViewChild, Input, HostBinding } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -10,6 +10,11 @@ import { CommonModule } from '@angular/common';
 })
 export class LoaderComponent implements AfterViewInit {
   @ViewChild('typewriter') typewriterElRef!: ElementRef<HTMLElement>;
+  @Input() fullscreen = true;
+
+  @HostBinding('class.fullscreen') get isFullscreen() {
+    return this.fullscreen;
+  }
 
   private readonly text = "CHARGEMENT DU PROGRAMME";
   private i = 0;
@@ -17,7 +22,7 @@ export class LoaderComponent implements AfterViewInit {
 
   ngAfterViewInit() {
     // Démarrer l'animation après un court délai pour s'assurer que la vue est initialisée
-    setTimeout(() => this.typeWriter(), 500);
+    this.typeWriter();
   }
 
   private typeWriter(): void {

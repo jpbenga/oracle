@@ -6,20 +6,31 @@
     box-sizing: border-box;
 }
 
-:host {
+:host(.fullscreen) {
     background: #0a0a0a;
     height: 100vh;
     width: 100vw;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 999;
+}
+
+:host {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.loader-container {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     font-family: 'JetBrains Mono', monospace;
     gap: 20px;
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: 999;
+    width: 100%;
+    height: 100%;
 }
 
 .spinner {
